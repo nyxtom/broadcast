@@ -20,6 +20,12 @@ type Configuration struct {
 	host string // host of the server
 }
 
+type Command struct {
+	Name        string // name of the command
+	Description string // description of the command
+	Usage       string // example usage of the command
+}
+
 func main() {
 	// Leverage all cores available
 	runtime.GOMAXPROCS(runtime.NumCPU())
@@ -93,6 +99,17 @@ func main() {
 	}()
 
 	// register all relevant commands
+	commands := make(map[string]*Command)
+	commands["PING"] = &Command{"PING", "Pings the server for a response", ""}
+	commands["ECHO"] = &Command{"ECHO", "Echos back a message sent", "ECHO \"hello world\""}
+	commands["INFO"] = &Command{"INFO", "Returns back the current server status and information", ""}
+	commands["SUM"] = &Command{"SUM", "Returns the result of adding 1-to-many numbers", "SUM 10 21 32"}
+	commands["CMDS"] = &Command{"CMDS", "Returns the list of available commands supported by the server", ""}
+	app.Register("CMDS", func(data interface{}, client *server.NetworkClient) error {
+		client.WriteJson(commands)
+		client.Flush()
+		return nil
+	})
 	app.Register("PING", func(data interface{}, client *server.NetworkClient) error {
 		client.WriteString("PONG")
 		client.Flush()
@@ -110,7 +127,17 @@ func main() {
 			return nil
 		}
 	})
-	app.Register("ADD", func(data interface{}, client *server.NetworkClient) error {
+	app.Register("INFO", func(data interface{}, client *server.NetworkClient) error {
+		status, err := app.Status()
+		if err != nil {
+			return err
+		}
+
+		client.WriteJson(status)
+		client.Flush()
+		return nil
+	})
+	app.Register("SUM", func(data interface{}, client *server.NetworkClient) error {
 		d, _ := data.([]interface{})
 		if len(d) < 1 {
 			client.WriteError(errors.New("ADD takes at least 2 parameters"))
@@ -135,16 +162,6 @@ func main() {
 			client.Flush()
 			return nil
 		}
-	})
-	app.Register("INFO", func(data interface{}, client *server.NetworkClient) error {
-		status, err := app.Status()
-		if err != nil {
-			return err
-		}
-
-		client.WriteJson(status)
-		client.Flush()
-		return nil
 	})
 
 	// accept incomming connections!

@@ -12,6 +12,8 @@ import (
 	"github.com/nyxtom/broadcast/client/go/broadcast"
 )
 
+var helpCommands = [][]string{}
+
 func main() {
 	var ip = flag.String("h", "127.0.0.1", "broadcast server ip (default 127.0.0.1)")
 	var port = flag.Int("p", 7331, "broadcast server port (default 7331)")
@@ -24,6 +26,14 @@ func main() {
 	if err != nil {
 		fmt.Printf(err.Error())
 		os.Exit(1)
+	}
+
+	// perform the initial cmds to see what is available
+	reply, err := c.Do("cmds", make([]interface{}, 0))
+	if err != nil {
+		fmt.Printf("%s", err.Error())
+	} else {
+		printReply("cmds", reply)
 	}
 
 	SetCompletionHandler(completionHandler)
@@ -81,6 +91,25 @@ func main() {
 }
 
 func printReply(cmd string, reply interface{}) {
+	if strings.ToLower(cmd) == "cmds" {
+		reply := reply.(map[string]interface{})
+		helpReply := false
+		if helpCommands == nil || len(helpCommands) == 0 {
+			helpReply = true
+			helpCommands = make([][]string, 0)
+		}
+		for k, v := range reply {
+			cmd := v.(map[string]interface{})
+			desc := cmd["Description"].(string)
+			usage := cmd["Usage"].(string)
+			if helpReply {
+				helpCommands = append(helpCommands, []string{k, usage, desc})
+			} else {
+				printCommandHelp([]string{k, usage, desc})
+			}
+		}
+		return
+	}
 	switch reply := reply.(type) {
 	case int64:
 		fmt.Printf("(integer) %d\n", reply)
@@ -105,12 +134,14 @@ func printReply(cmd string, reply interface{}) {
 		}
 		sort.Strings(mk)
 		for _, v := range mk {
-			fmt.Printf("%s: ", v)
 			replyV := reply[v]
-			if _, ok := replyV.([]interface{}); ok {
-				fmt.Printf("\n")
+			if replyV != nil {
+				fmt.Printf("%s: ", v)
+				if _, ok := replyV.([]interface{}); ok {
+					fmt.Printf("\n")
+				}
+				printReply(cmd, replyV)
 			}
-			printReply(cmd, replyV)
 		}
 	case []interface{}:
 		if len(reply) > 10 {
@@ -132,10 +163,11 @@ Type:   "help <command>" for help on <command>
 }
 
 func printCommandHelp(arr []string) {
-	fmt.Println()
-	fmt.Printf("\t%s %s \n", arr[0], arr[1])
-	fmt.Printf("\tGroup: %s \n", arr[2])
-	fmt.Println()
+	fmt.Printf("%s\n %s", arr[0], arr[2])
+	if len(arr[1]) > 0 {
+		fmt.Printf("\n usage: %s", arr[1])
+	}
+	fmt.Printf("\n\n")
 }
 
 func printHelp(cmds []string) {
