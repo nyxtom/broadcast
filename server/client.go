@@ -3,6 +3,7 @@ package server
 import (
 	"bufio"
 	"bytes"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -24,6 +25,7 @@ type NetworkClient struct {
 	conn   net.Conn // network connection associated with this client
 	addr   string   // remote address identifier
 	closed bool     // closed boolean identifier
+	Quit   chan struct{}
 }
 
 // Close will shutdown any latent network connections and clear the client out
@@ -38,6 +40,7 @@ func (netClient *NetworkClient) Close() {
 	netClient.closed = true
 	netClient.conn.Close()
 	netClient.conn = nil
+	close(netClient.Quit)
 }
 
 func NewNetworkClient(conn net.Conn) (*NetworkClient, error) {
@@ -46,6 +49,7 @@ func NewNetworkClient(conn net.Conn) (*NetworkClient, error) {
 	client.reader = bufio.NewReader(conn)
 	client.writer = bufio.NewWriter(conn)
 	client.addr = conn.RemoteAddr().String()
+	client.Quit = make(chan struct{})
 	return client, nil
 }
 
@@ -151,6 +155,18 @@ func (client *BufferClient) WriteArray(args []interface{}) error {
 	return err
 }
 
+func (client *BufferClient) WriteJson(arg interface{}) error {
+	b, err := json.Marshal(arg)
+	if err != nil {
+		return err
+	}
+
+	client.writer.WriteByte('~')
+	client.writer.WriteString("json")
+	client.writer.Write(Delims)
+	return client.WriteBytes(b)
+}
+
 func (client *BufferClient) WriteCommand(cmd string, args []interface{}) error {
 	argsmod := make([]interface{}, len(args)+1)
 	argsmod[0] = cmd
@@ -198,7 +214,7 @@ func (client *BufferClient) Read() (interface{}, error) {
 		{
 			n, err := client.parseInt64(line[1:])
 			if err != nil {
-				return nil, errReadRequest
+				return nil, err
 			}
 
 			r := make([]interface{}, n)
@@ -223,6 +239,30 @@ func (client *BufferClient) Read() (interface{}, error) {
 		return client.parseBool(line[1:])
 	case '-':
 		return client.parseError(line[1:])
+	case '~':
+		{
+			structure, err := client.parseString(line[1:])
+			if err != nil {
+				return nil, err
+			}
+
+			r, err := client.Read()
+			if err != nil {
+				return nil, err
+			}
+
+			if structure == "json" {
+				var result map[string]interface{}
+				err := json.Unmarshal(r.([]byte), &result)
+				if err != nil {
+					return nil, err
+				}
+
+				return result, nil
+			}
+
+			return nil, errReadRequest
+		}
 	}
 	return nil, errReadRequest
 }

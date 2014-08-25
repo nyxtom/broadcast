@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"net"
+	"os"
 	"runtime"
 	"strconv"
 	"strings"
@@ -17,6 +18,9 @@ type BroadcastServer struct {
 	port     int                       // port to listen on
 	host     string                    // host to bind to
 	addr     string                    // address to bind to
+	version  string                    // version of the broadcast server
+	bit      string                    // 32-bit vs 64-bit version
+	pid      int                       // pid of the broadcast server
 	listener net.Listener              // listener for the broadcast server
 	clients  map[string]*NetworkClient // clients is a map of all the connected clients to the server
 	commands map[string]Handler        // commands is a map of all the available commands executable by the server
@@ -26,6 +30,14 @@ type BroadcastServer struct {
 	Events   chan BroadcastEvent       // events is a channel for when emitted data occurs in the application
 }
 
+type BroadcastServerStatus struct {
+	NumGoroutines int               // number of go-routines running
+	NumCpu        int               // number of cpu's running
+	NumCgoCall    int64             // number of cgo calls
+	Memory        *runtime.MemStats // memory statistics running
+	Clients       int               // number of connected clients
+}
+
 // Listen will use the given address parameters to construct a simple server that listens for incomming clients
 func Listen(port int, host string) (*BroadcastServer, error) {
 	app := new(BroadcastServer)
@@ -33,6 +45,9 @@ func Listen(port int, host string) (*BroadcastServer, error) {
 	app.port = port
 	app.host = host
 	app.addr = host + ":" + strconv.Itoa(port)
+	app.version = BroadcastVersion
+	app.bit = BroadcastBit
+	app.pid = os.Getpid()
 
 	// listen on the given protocol/port/host
 	listener, err := net.Listen(app.protocol, app.addr)
@@ -49,6 +64,17 @@ func Listen(port int, host string) (*BroadcastServer, error) {
 	app.Quit = make(chan struct{})
 	app.Events = make(chan BroadcastEvent)
 	return app, nil
+}
+
+func (app *BroadcastServer) Status() (*BroadcastServerStatus, error) {
+	status := new(BroadcastServerStatus)
+	status.NumGoroutines = runtime.NumGoroutine()
+	status.NumCpu = runtime.NumCPU()
+	status.NumCgoCall = runtime.NumCgoCall()
+	status.Clients = app.size
+	status.Memory = new(runtime.MemStats)
+	runtime.ReadMemStats(status.Memory)
+	return status, nil
 }
 
 // Register will bind a particular byte/mark to a specific command handler (thus registering command handlers)
@@ -80,6 +106,7 @@ func (app *BroadcastServer) Close() {
 // AcceptConnections will use the network listener for incomming clients in order to handle those connections
 // in an async manner. This will setup routines for both reading and writing to a connected client
 func (app *BroadcastServer) AcceptConnections() {
+	app.Events <- BroadcastEvent{"info", fmt.Sprintf(LogoHeader, app.version, app.bit, app.port, app.pid), nil, nil}
 	app.Events <- BroadcastEvent{"info", "broadcast server started listening on " + app.Address(), nil, nil}
 	for !app.Closed {
 		connection, err := app.listener.Accept()
@@ -92,11 +119,18 @@ func (app *BroadcastServer) AcceptConnections() {
 		client, err := app.handleConnection(connection)
 		if err != nil {
 			connection.Close()
+			app.size--
 			app.Events <- BroadcastEvent{"error", "accept error", err, nil}
 			continue
 		}
 
 		app.Events <- BroadcastEvent{"accept", fmt.Sprintf("client %s connected to server", client.addr), nil, nil}
+		go func() {
+			<-client.Quit
+			app.Events <- BroadcastEvent{"disconnect", fmt.Sprintf("client %s disconnected from server", client.addr), nil, nil}
+			delete(app.clients, client.addr)
+			app.size--
+		}()
 		go app.runClient(client)
 	}
 }

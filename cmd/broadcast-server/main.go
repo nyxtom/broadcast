@@ -4,36 +4,67 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"io/ioutil"
 	"os"
 	"os/signal"
 	"runtime"
 	"syscall"
+	"time"
 
+	"github.com/BurntSushi/toml"
 	"github.com/nyxtom/broadcast/server"
 )
+
+type Configuration struct {
+	port int    // port of the server
+	host string // host of the server
+}
 
 func main() {
 	// Leverage all cores available
 	runtime.GOMAXPROCS(runtime.NumCPU())
-	flag.Parse()
 
 	// Parse out flag parameters
 	var host = flag.String("h", "127.0.0.1", "Broadcast server host to bind to")
 	var port = flag.Int("p", 7331, "Broadcast server port to bind to")
+	var configFile = flag.String("config", "", "Broadcast server configuration file (/etc/broadcast.conf)")
+
+	flag.Parse()
+
+	cfg := &Configuration{*port, *host}
+	if len(*configFile) == 0 {
+		fmt.Printf("[%d] %s # WARNING: no config file specified, using the default config\n", os.Getpid(), time.Now().Format(time.RFC822))
+	} else {
+		data, err := ioutil.ReadFile(*configFile)
+		if err != nil {
+			fmt.Println(err)
+			return
+		}
+		_, err = toml.Decode(string(data), cfg)
+		if err != nil {
+			fmt.Println(err)
+			return
+		}
+	}
 
 	// create a new broadcast server
-	app, err := server.Listen(*port, *host)
+	app, err := server.Listen(cfg.port, cfg.host)
 	if err != nil {
 		fmt.Println(err)
 		return
 	}
 
 	// wait for all events to fire so we can log them
-	address := app.Address()
+	pid := os.Getpid()
 	go func() {
 		for !app.Closed {
 			event := <-app.Events
-			msg := fmt.Sprintf("[%s] %s: %s", address, event.Level, event.Message)
+			t := time.Now()
+			delim := "#"
+			if event.Level == "error" {
+				delim = "ERROR:"
+			}
+			msg := fmt.Sprintf("[%d] %s %s %s", pid, t.Format(time.RFC822), delim, event.Message)
 			if event.Err != nil {
 				msg += fmt.Sprintf(" %v", event.Err)
 			}
@@ -104,6 +135,16 @@ func main() {
 			client.Flush()
 			return nil
 		}
+	})
+	app.Register("INFO", func(data interface{}, client *server.NetworkClient) error {
+		status, err := app.Status()
+		if err != nil {
+			return err
+		}
+
+		client.WriteJson(status)
+		client.Flush()
+		return nil
 	})
 
 	// accept incomming connections!

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"regexp"
+	"sort"
 	"strconv"
 	"strings"
 
@@ -32,7 +33,7 @@ func main() {
 	prompt := ""
 
 	for {
-		prompt = fmt.Sprintf("%s>", addr)
+		prompt = fmt.Sprintf("%s> ", addr)
 
 		cmd, err := line(prompt)
 		if err != nil {
@@ -73,7 +74,6 @@ func main() {
 				} else {
 					printReply(cmd, reply)
 				}
-
 				fmt.Printf("\n")
 			}
 		}
@@ -83,24 +83,42 @@ func main() {
 func printReply(cmd string, reply interface{}) {
 	switch reply := reply.(type) {
 	case int64:
-		fmt.Printf("(integer) %d", reply)
+		fmt.Printf("(integer) %d\n", reply)
 	case float64:
-		fmt.Printf("(float) %f", reply)
+		fmt.Printf("(float) %f\n", reply)
 	case string:
-		fmt.Printf("%s", reply)
+		fmt.Printf("%s\n", reply)
 	case []byte:
-		fmt.Printf("%q", reply)
+		fmt.Printf("%q\n", reply)
 	case nil:
-		fmt.Printf("(nil)")
+		fmt.Printf("(nil)\n")
+	case bool:
+		fmt.Printf("%v\n", reply)
 	case error:
-		fmt.Printf("%s", string(reply.Error()))
+		fmt.Printf("%s\n", string(reply.Error()))
+	case map[string]interface{}:
+		mk := make([]string, len(reply))
+		i := 0
+		for k, _ := range reply {
+			mk[i] = k
+			i++
+		}
+		sort.Strings(mk)
+		for _, v := range mk {
+			fmt.Printf("%s: ", v)
+			replyV := reply[v]
+			if _, ok := replyV.([]interface{}); ok {
+				fmt.Printf("\n")
+			}
+			printReply(cmd, replyV)
+		}
 	case []interface{}:
+		if len(reply) > 10 {
+			reply = reply[:10]
+		}
 		for i, v := range reply {
 			fmt.Printf("%d) ", i+1)
 			printReply(cmd, v)
-			if i != len(reply)-1 {
-				fmt.Printf("\n")
-			}
 		}
 	}
 }

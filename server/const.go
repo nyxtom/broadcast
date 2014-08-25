@@ -12,3 +12,13 @@ var Delims = []byte("\r\n")
 var NullBulk = []byte("-1")
 var PONG = "PONG"
 var OK = "OK"
+var BroadcastVersion = "0.1.0"
+var BroadcastBit = "64 bit"
+var LogoHeader = `
+
+  _                             Broadcast %s %s
+   /_)__  _   _/_  _   __/_     
+   /_)//_//_|/_//_ /_|_\ /      Port: %d
+                                PID: %d
+
+`
