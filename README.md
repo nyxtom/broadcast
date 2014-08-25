@@ -40,3 +40,181 @@ Broadcast-stats is a server that runs on top of the broadcast library.
 This simple server will store an in-memory model of stat data, while
 responding to various stat commands registered when the server starts up.
 Commands can be retrieved from any broadcast-cli appropriately.
+
+```
+broadcast-server -stats=true
+```
+
+The above command will load the backend from the location:
+
+```
+github.com/nyxtom/braodcast/backends/stats
+```
+
+An implementation of the stats backend will simply create an in-memory
+solution for various commands, while registering all the available
+commands for this particular backend with the app server. This is done via
+the **RegisterBackend** executed by the broadcast-server executable. Note 
+the implementation in **metrics.go**
+
+```
+func RegisterBackend(app *server.BroadcastServer) (server.Backend, error) {
+	backend := new(StatsBackend)
+	mem, err := NewMemoryBackend()
+	if err != nil {
+		return nil, err
+	}
+
+	backend.mem = mem
+
+	commandHelp := []server.Command{
+		server.Command{"COUNT", "Increments a key that resets itself to 0 on each flush routine.", "COUNT foo [124]"},
+		server.Command{"COUNTERS", "Returns the list of active counters.", ""},
+		server.Command{"INCR", "Increments a key by the specified value or by default 1.", "INCR key [1]"},
+		server.Command{"DECR", "Decrements a key by the specified value or by default 1.", "DECR key [1]"},
+		server.Command{"DEL", "Deletes a key from the values or counters list or both.", "DEL key"},
+		server.Command{"EXISTS", "Determines if the given key exists from the values.", "EXISTS key"},
+		server.Command{"GET", "Gets the specified key from the values.", "GET key"},
+		server.Command{"SET", "Sets the specified key to the specified value in values.", "SET key 1234"},
+		server.Command{"SETNX", "Sets the specified key to the given value only if the key is not already set.", "SETNX key 1234"},
+	}
+	commands := []server.Handler{
+		backend.Count,
+		backend.Counters,
+		backend.Incr,
+		backend.Decr,
+		backend.Del,
+		backend.Exists,
+		backend.Get,
+		backend.Set,
+		backend.SetNx,
+	}
+
+	for i, _ := range commandHelp {
+		app.RegisterCommand(commandHelp[i], commands[i])
+	}
+
+	return backend, nil
+}
+```
+
+The server handlers are executed by the broadcast server whenever it encounters a command that was pre-registered. All callbacks 
+will recieve a generic interface (generally this is an array but it might
+be a single value depending on the use case), followed by a network client
+that can be used to write back to the client response stream.
+
+```
+func (stats *StatsBackend) FlushInt(i int, err error, client *server.NetworkClient) error {
+	if err != nil {
+		return err
+	}
+	client.WriteInt64(int64(i))
+	client.Flush()
+	return nil
+}
+
+func (stats *StatsBackend) Set(data interface{}, client *server.NetworkClient) error {
+	d, _ := data.([]interface{})
+	if len(d) < 2 {
+		client.WriteError(errors.New("SET takes at least 2 parameters (i.e. key to set and value to set to)"))
+		client.Flush()
+		return nil
+	} else {
+		key := d[0].(string)
+		value := d[1].(int64)
+		i, err := stats.mem.Set(key, int(value))
+		return stats.FlushInt(i, err, client)
+	}
+}
+```
+
+Implementing a registered callback command is really simple to do once you get the hang of 
+writing back to the client in whatever way you need to. You can even execute commands back 
+to the client via WriteCommand.
+
+## Broadcast-Server Simple Commands
+
+### PING
+
+Ping is a super simple command that is automatically registered by the
+broadcast-server when it starts up. The implementation is below:
+
+```
+package server
+
+var pong = "PONG"
+
+func CmdPing(data interface{}, client *NetworkClient) error {
+	client.WriteJson(pong)
+	client.Flush()
+	return nil
+}
+```
+
+And the broadcast-server will register this command on start-up like so:
+
+```
+app.RegisterCommand(server.Command{"PING", "Pings the server for a response", ""}, server.CmdPing)
+```
+
+### ECHO
+
+Echo is another simple command that is automaticall registered on
+start-up by the broadcast-server. 
+
+```
+package server
+
+func CmdEcho(data interface{}, client *NetworkClient) error {
+	d, _ := data.([]interface{})
+	if len(d) == 0 {
+		client.WriteString("")
+		client.Flush()
+		return nil
+	} else {
+		client.WriteString(d[0].(string))
+		client.Flush()
+		return nil
+	}
+}
+```
+
+### SUM
+
+Sum is a command that will add up all the given parameters that 
+were passed into it by the client. Note how we can add both 
+floats and integers by inspecting the type. This is a simple command 
+that is automatically registered by the broadcast-server.
+
+```
+package server
+
+import "errors"
+
+func CmdSum(data interface{}, client *NetworkClient) error {
+	d, _ := data.([]interface{})
+	if len(d) < 1 {
+		client.WriteError(errors.New("ADD takes at least 2 parameters"))
+		client.Flush()
+		return nil
+	} else {
+		sum := int64(0)
+		sumf := float64(0)
+		for _, a := range d {
+			switch a := a.(type) {
+			case int64:
+				sum += a
+			case float64:
+				sumf += a
+			}
+		}
+		if sumf != 0 {
+			client.WriteFloat64(sumf + float64(sum))
+		} else {
+			client.WriteInt64(sum)
+		}
+		client.Flush()
+		return nil
+	}
+}
+```
