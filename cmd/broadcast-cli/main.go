@@ -33,7 +33,7 @@ func main() {
 	if err != nil {
 		fmt.Printf("%s", err.Error())
 	} else {
-		printReply("cmds", reply)
+		printReply("cmds", reply, "")
 	}
 
 	SetCompletionHandler(completionHandler)
@@ -82,7 +82,7 @@ func main() {
 				if err != nil {
 					fmt.Printf("%s", err.Error())
 				} else {
-					printReply(cmd, reply)
+					printReply(cmd, reply, "")
 				}
 				fmt.Printf("\n")
 			}
@@ -90,7 +90,7 @@ func main() {
 	}
 }
 
-func printReply(cmd string, reply interface{}) {
+func printReply(cmd string, reply interface{}, indent string) {
 	if strings.ToLower(cmd) == "cmds" {
 		reply := reply.(map[string]interface{})
 		helpReply := false
@@ -136,11 +136,11 @@ func printReply(cmd string, reply interface{}) {
 		for _, v := range mk {
 			replyV := reply[v]
 			if replyV != nil {
-				fmt.Printf("%s: ", v)
+				fmt.Printf(indent+"%s: ", v)
 				if _, ok := replyV.([]interface{}); ok {
 					fmt.Printf("\n")
 				}
-				printReply(cmd, replyV)
+				printReply(cmd, replyV, indent)
 			}
 		}
 	case []interface{}:
@@ -148,8 +148,12 @@ func printReply(cmd string, reply interface{}) {
 			reply = reply[:10]
 		}
 		for i, v := range reply {
-			fmt.Printf("%d) ", i+1)
-			printReply(cmd, v)
+			if _, ok := v.(map[string]interface{}); ok {
+				fmt.Printf("  %d) \n", i+1)
+			} else {
+				fmt.Printf("  %d)\t", i+1)
+			}
+			printReply(cmd, v, indent+"\t")
 		}
 	}
 }

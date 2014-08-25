@@ -1,7 +1,6 @@
 package main
 
 import (
-	"errors"
 	"flag"
 	"fmt"
 	"io/ioutil"
@@ -12,18 +11,17 @@ import (
 	"time"
 
 	"github.com/BurntSushi/toml"
+	"github.com/nyxtom/broadcast/backends/stats"
 	"github.com/nyxtom/broadcast/server"
 )
 
 type Configuration struct {
-	port int    // port of the server
-	host string // host of the server
+	port  int    // port of the server
+	host  string // host of the server
+	stats bool   // stats backend configuration enabled/disabled
 }
 
-type Command struct {
-	Name        string // name of the command
-	Description string // description of the command
-	Usage       string // example usage of the command
+type StatsConfiguration struct {
 }
 
 func main() {
@@ -33,11 +31,12 @@ func main() {
 	// Parse out flag parameters
 	var host = flag.String("h", "127.0.0.1", "Broadcast server host to bind to")
 	var port = flag.Int("p", 7331, "Broadcast server port to bind to")
+	var statsBackend = flag.Bool("stats", true, "Broadcast server stats backend")
 	var configFile = flag.String("config", "", "Broadcast server configuration file (/etc/broadcast.conf)")
 
 	flag.Parse()
 
-	cfg := &Configuration{*port, *host}
+	cfg := &Configuration{*port, *host, *statsBackend}
 	if len(*configFile) == 0 {
 		fmt.Printf("[%d] %s # WARNING: no config file specified, using the default config\n", os.Getpid(), time.Now().Format(time.RFC822))
 	} else {
@@ -58,6 +57,16 @@ func main() {
 	if err != nil {
 		fmt.Println(err)
 		return
+	}
+
+	// setup backends
+	if cfg.stats {
+		backend, err := stats.RegisterBackend(app)
+		if err != nil {
+			fmt.Println(err)
+			return
+		}
+		app.LoadBackend(backend)
 	}
 
 	// wait for all events to fire so we can log them
@@ -99,70 +108,11 @@ func main() {
 	}()
 
 	// register all relevant commands
-	commands := make(map[string]*Command)
-	commands["PING"] = &Command{"PING", "Pings the server for a response", ""}
-	commands["ECHO"] = &Command{"ECHO", "Echos back a message sent", "ECHO \"hello world\""}
-	commands["INFO"] = &Command{"INFO", "Returns back the current server status and information", ""}
-	commands["SUM"] = &Command{"SUM", "Returns the result of adding 1-to-many numbers", "SUM 10 21 32"}
-	commands["CMDS"] = &Command{"CMDS", "Returns the list of available commands supported by the server", ""}
-	app.Register("CMDS", func(data interface{}, client *server.NetworkClient) error {
-		client.WriteJson(commands)
-		client.Flush()
-		return nil
-	})
-	app.Register("PING", func(data interface{}, client *server.NetworkClient) error {
-		client.WriteString("PONG")
-		client.Flush()
-		return nil
-	})
-	app.Register("ECHO", func(data interface{}, client *server.NetworkClient) error {
-		d, _ := data.([]interface{})
-		if len(d) == 0 {
-			client.WriteString("")
-			client.Flush()
-			return nil
-		} else {
-			client.WriteString(d[0].(string))
-			client.Flush()
-			return nil
-		}
-	})
-	app.Register("INFO", func(data interface{}, client *server.NetworkClient) error {
-		status, err := app.Status()
-		if err != nil {
-			return err
-		}
-
-		client.WriteJson(status)
-		client.Flush()
-		return nil
-	})
-	app.Register("SUM", func(data interface{}, client *server.NetworkClient) error {
-		d, _ := data.([]interface{})
-		if len(d) < 1 {
-			client.WriteError(errors.New("ADD takes at least 2 parameters"))
-			client.Flush()
-			return nil
-		} else {
-			sum := int64(0)
-			sumf := float64(0)
-			for _, a := range d {
-				switch a := a.(type) {
-				case int64:
-					sum += a
-				case float64:
-					sumf += a
-				}
-			}
-			if sumf != 0 {
-				client.WriteFloat64(sumf + float64(sum))
-			} else {
-				client.WriteInt64(sum)
-			}
-			client.Flush()
-			return nil
-		}
-	})
+	app.RegisterCommand(server.Command{"PING", "Pings the server for a response", ""}, server.CmdPing)
+	app.RegisterCommand(server.Command{"ECHO", "Echos back a message sent", "ECHO \"hello world\""}, server.CmdEcho)
+	app.RegisterCommand(server.Command{"INFO", "Current server status and information", ""}, app.CmdInfo)
+	app.RegisterCommand(server.Command{"CMDS", "List of available commands supported by the server", ""}, app.CmdHelp)
+	app.RegisterCommand(server.Command{"SUM", "Performs the summation on 1-to-many numbers", "SUM 10 21 32"}, server.CmdSum)
 
 	// accept incomming connections!
 	app.AcceptConnections()

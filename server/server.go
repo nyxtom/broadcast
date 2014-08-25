@@ -14,20 +14,22 @@ import (
 // the various address, protocol, network listener, connected clients, and overall
 // server state that can be used for either reporting, or communicating with services.
 type BroadcastServer struct {
-	protocol string
-	port     int                       // port to listen on
-	host     string                    // host to bind to
-	addr     string                    // address to bind to
-	version  string                    // version of the broadcast server
-	bit      string                    // 32-bit vs 64-bit version
-	pid      int                       // pid of the broadcast server
-	listener net.Listener              // listener for the broadcast server
-	clients  map[string]*NetworkClient // clients is a map of all the connected clients to the server
-	commands map[string]Handler        // commands is a map of all the available commands executable by the server
-	size     int                       // size is the number of total clients connected to the server
-	Closed   bool                      // closed is the boolean for when the application has already been closed
-	Quit     chan struct{}             // quit is a simple channel signal for when the application quits
-	Events   chan BroadcastEvent       // events is a channel for when emitted data occurs in the application
+	protocol    string
+	port        int                       // port to listen on
+	host        string                    // host to bind to
+	addr        string                    // address to bind to
+	version     string                    // version of the broadcast server
+	bit         string                    // 32-bit vs 64-bit version
+	pid         int                       // pid of the broadcast server
+	listener    net.Listener              // listener for the broadcast server
+	clients     map[string]*NetworkClient // clients is a map of all the connected clients to the server
+	commands    map[string]Handler        // commands is a map of all the available commands executable by the server
+	commandHelp map[string]Command        // command help includes name, description and usage
+	size        int                       // size is the number of total clients connected to the server
+	backends    []Backend                 // registered backends with the broadcast server
+	Closed      bool                      // closed is the boolean for when the application has already been closed
+	Quit        chan struct{}             // quit is a simple channel signal for when the application quits
+	Events      chan BroadcastEvent       // events is a channel for when emitted data occurs in the application
 }
 
 type BroadcastServerStatus struct {
@@ -35,7 +37,12 @@ type BroadcastServerStatus struct {
 	NumCpu        int               // number of cpu's running
 	NumCgoCall    int64             // number of cgo calls
 	Memory        *runtime.MemStats // memory statistics running
-	Clients       int               // number of connected clients
+	NumClients    int               // number of connected clients
+}
+
+type Backend interface {
+	Load() error
+	Unload() error
 }
 
 // Listen will use the given address parameters to construct a simple server that listens for incomming clients
@@ -58,7 +65,9 @@ func Listen(port int, host string) (*BroadcastServer, error) {
 	app.listener = listener
 	app.clients = make(map[string]*NetworkClient)
 	app.commands = make(map[string]Handler)
+	app.commandHelp = make(map[string]Command)
 	app.size = 0
+	app.backends = make([]Backend, 0)
 
 	app.Closed = false
 	app.Quit = make(chan struct{})
@@ -66,15 +75,43 @@ func Listen(port int, host string) (*BroadcastServer, error) {
 	return app, nil
 }
 
+func (app *BroadcastServer) LoadBackend(backend Backend) error {
+	app.backends = append(app.backends, backend)
+	return backend.Load()
+}
+
 func (app *BroadcastServer) Status() (*BroadcastServerStatus, error) {
 	status := new(BroadcastServerStatus)
 	status.NumGoroutines = runtime.NumGoroutine()
 	status.NumCpu = runtime.NumCPU()
 	status.NumCgoCall = runtime.NumCgoCall()
-	status.Clients = app.size
+	status.NumClients = app.size
 	status.Memory = new(runtime.MemStats)
 	runtime.ReadMemStats(status.Memory)
 	return status, nil
+}
+
+func (app *BroadcastServer) CmdInfo(data interface{}, client *NetworkClient) error {
+	status, err := app.Status()
+	if err != nil {
+		return err
+	}
+
+	client.WriteJson(status)
+	client.Flush()
+	return nil
+}
+
+func (app *BroadcastServer) CmdHelp(data interface{}, client *NetworkClient) error {
+	client.WriteJson(app.commandHelp)
+	client.Flush()
+	return nil
+}
+
+// RegisterCommand takes a simple command structure and handler to assign both the help info and the handler itself
+func (app *BroadcastServer) RegisterCommand(cmd Command, handler Handler) {
+	app.Register(cmd.Name, handler)
+	app.commandHelp[strings.ToUpper(cmd.Name)] = cmd
 }
 
 // Register will bind a particular byte/mark to a specific command handler (thus registering command handlers)
@@ -99,6 +136,9 @@ func (app *BroadcastServer) Close() {
 		client.Close()
 		app.size--
 	}
+	for _, backend := range app.backends {
+		backend.Unload()
+	}
 	app.listener.Close()
 	close(app.Quit)
 }
@@ -108,6 +148,7 @@ func (app *BroadcastServer) Close() {
 func (app *BroadcastServer) AcceptConnections() {
 	app.Events <- BroadcastEvent{"info", fmt.Sprintf(LogoHeader, app.version, app.bit, app.port, app.pid), nil, nil}
 	app.Events <- BroadcastEvent{"info", "broadcast server started listening on " + app.Address(), nil, nil}
+
 	for !app.Closed {
 		connection, err := app.listener.Accept()
 		if err != nil {
