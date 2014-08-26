@@ -51,6 +51,14 @@ func (client *Client) Close() {
 	}
 }
 
+func (client *Client) CloseConnection(conn *ClientConnection) {
+	client.put(conn)
+}
+
+func (client *Client) Get() *ClientConnection {
+	return client.get()
+}
+
 func (client *Client) get() *ClientConnection {
 	client.Lock()
 	defer client.Unlock()
