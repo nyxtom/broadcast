@@ -23,7 +23,8 @@ while being able to work directly with typed data.
   routines through extended modules (i.e. broadcast-stats)
 
 ## TODO
-+ listen on udp
++ broadcast-benchmark for stats benchmarking
++ configuration/support for listening on udp
 + cluster-aware configuration, allow broadcast-server to inspect commands 
   and determine whether both the command or the first key of the arguments
   is handled by a different server altogether using a hashring config.
