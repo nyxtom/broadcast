@@ -258,3 +258,79 @@ SUM
 <command>. All commands are cached on start-up, to refresh the list of
 available commands (in the event the server is restarted with new
 commands) you will need to be sure to exit the cli as well.
+
+With broadcast-server -stats=true, the available commands will shift to
+something more along the lines of below:
+
+```
+$ broadcast-server -stats=true
+[15652] 25 Aug 14 18:26 MDT # WARNING: no config file specified, using the default config
+[15652] 25 Aug 14 18:26 MDT #
+
+  _                             Broadcast 0.1.0 64 bit
+   /_)__  _   _/_  _   __/_
+   /_)//_//_|/_//_ /_|_\ /      Port: 7331
+                                PID: 15652
+
+
+[15652] 25 Aug 14 18:26 MDT # broadcast server started listening on 127.0.0.1:7331
+```
+
+```
+$ broadcast-cli -h="127.0.0.1" -p=7331
+127.0.0.1:7331> CMDS
+SETNX
+ Sets the specified key to the given value only if the key is not already set.
+ usage: SETNX key 1234
+
+EXISTS
+ Determines if the given key exists from the values.
+ usage: EXISTS key
+
+GET
+ Gets the specified key from the values.
+ usage: GET key
+
+SUM
+ Performs the summation on 1-to-many numbers
+ usage: SUM 10 21 32
+
+DECR
+ Decrements a key by the specified value or by default 1.
+ usage: DECR key [1]
+
+DEL
+ Deletes a key from the values or counters list or both.
+ usage: DEL key
+
+PING
+ Pings the server for a response
+
+CMDS
+ List of available commands supported by the server
+
+COUNT
+ Increments a key that resets itself to 0 on each flush routine.
+ usage: COUNT foo [124]
+
+COUNTERS
+ Returns the list of active counters.
+
+SET
+ Sets the specified key to the specified value in values.
+ usage: SET key 1234
+
+ECHO
+ Echos back a message sent
+ usage: ECHO "hello world"
+
+INCR
+ Increments a key by the specified value or by default 1.
+ usage: INCR key [1]
+
+INFO
+ Current server status and information
+
+
+127.0.0.1:7331>
+```
