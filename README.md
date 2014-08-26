@@ -48,7 +48,7 @@ broadcast-server -stats=true
 The above command will load the backend from the location:
 
 ```
-github.com/nyxtom/braodcast/backends/stats
+github.com/nyxtom/broadcast/backends/stats
 ```
 
 An implementation of the stats backend will simply create an in-memory
@@ -145,7 +145,7 @@ package server
 var pong = "PONG"
 
 func CmdPing(data interface{}, client *NetworkClient) error {
-	client.WriteJson(pong)
+	client.WriteString(pong)
 	client.Flush()
 	return nil
 }
@@ -217,4 +217,34 @@ func CmdSum(data interface{}, client *NetworkClient) error {
 		return nil
 	}
 }
+```
+
+### Broadcast-Cli
+
+broadcast-cli is the command line tool we can use to connect to any
+broadcast-server. Primarily the cli is meant to issue commands and serves
+as an example of how to write a broadcast client in golang. The client
+library being used to implement the cli is located in *client/go/broadcast*.
+
+```
+$ broadcast-cli -h="127.0.0.1" -p=7331
+127.0.0.1:7331> CMDS
+CMDS
+ List of available commands supported by the server
+
+ECHO
+ Echos back a message sent
+ usage: ECHO "hello world"
+
+INFO
+ Current server status and information
+
+PING
+ Pings the server for a response
+
+SUM
+ Performs the summation on 1-to-many numbers
+ usage: SUM 10 21 32
+
+127.0.0.1:7331> 
 ```
