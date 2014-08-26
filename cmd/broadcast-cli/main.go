@@ -68,7 +68,7 @@ func main() {
 					args[i] = a
 				} else if len(item) == 1 {
 					b := []byte(item)
-					args[i] = b[0]
+					args[i] = string(b[0])
 				} else {
 					args[i] = item
 				}

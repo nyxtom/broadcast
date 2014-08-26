@@ -10,6 +10,7 @@ var errCmdNotFound = errors.New("invalid command format")
 
 var Delims = []byte("\r\n")
 var NullBulk = []byte("-1")
+var CMDQUIT = "QUIT"
 var PONG = "PONG"
 var OK = "OK"
 var BroadcastVersion = "0.1.0"

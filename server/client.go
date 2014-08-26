@@ -44,10 +44,15 @@ func (netClient *NetworkClient) Close() {
 }
 
 func NewNetworkClient(conn net.Conn) (*NetworkClient, error) {
+	c, err := NewNetworkClientSize(conn, 128)
+	return c, err
+}
+
+func NewNetworkClientSize(conn net.Conn, bufferSize int) (*NetworkClient, error) {
 	client := new(NetworkClient)
 	client.conn = conn
-	client.reader = bufio.NewReader(conn)
-	client.writer = bufio.NewWriter(conn)
+	client.reader = bufio.NewReaderSize(conn, bufferSize)
+	client.writer = bufio.NewWriterSize(conn, bufferSize)
 	client.addr = conn.RemoteAddr().String()
 	client.Quit = make(chan struct{})
 	return client, nil
@@ -114,9 +119,10 @@ func (client *BufferClient) WriteBool(b bool) error {
 
 func (client *BufferClient) WriteError(e error) error {
 	client.writer.WriteByte('-')
-	client.writer.WriteString("ERR ")
 	if e != nil {
-		client.writer.WriteString(e.Error())
+		client.writer.WriteString("ERR " + e.Error())
+	} else {
+		client.writer.WriteString("ERR ")
 	}
 	_, err := client.writer.Write(Delims)
 	return err

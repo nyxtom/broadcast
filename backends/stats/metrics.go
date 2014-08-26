@@ -2,6 +2,7 @@ package stats
 
 import (
 	"errors"
+	"fmt"
 	"time"
 
 	"github.com/nyxtom/broadcast/server"
@@ -95,7 +96,7 @@ func (stats *StatsBackend) Exists(data interface{}, client *server.NetworkClient
 		client.Flush()
 		return nil
 	} else {
-		key := d[0].(string)
+		key := fmt.Sprintf("%v", d[0])
 		i, err := stats.mem.Exists(key)
 		return stats.FlushInt(i, err, client)
 	}

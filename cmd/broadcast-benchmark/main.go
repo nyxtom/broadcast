@@ -53,10 +53,77 @@ func bench(cmd string, f func()) {
 func benchSet() {
 	n := rand.Int()
 	f := func() {
-		waitBench("set", string(n), n)
+		waitBench("SET", string(n), n)
 	}
 
-	bench("set", f)
+	bench("SET", f)
+}
+
+func benchPing() {
+	f := func() {
+		waitBench("PING")
+	}
+
+	bench("PING", f)
+}
+
+func benchIncr() {
+	n := rand.Int()
+	f := func() {
+		waitBench("INCR", string(n), 1)
+	}
+
+	bench("INCR", f)
+}
+
+func benchDecr() {
+	n := rand.Int()
+	f := func() {
+		waitBench("DECR", string(n), 1)
+	}
+
+	bench("DECR", f)
+}
+
+func benchGet() {
+	f := func() {
+		waitBench("GET", "foo")
+	}
+
+	bench("GET", f)
+}
+
+func benchDel() {
+	f := func() {
+		waitBench("DEL", "foo")
+	}
+
+	bench("DEL", f)
+}
+
+func benchCount() {
+	f := func() {
+		waitBench("COUNT", "foo", 1)
+	}
+
+	bench("COUNT", f)
+}
+
+func benchSum() {
+	f := func() {
+		waitBench("SUM", 3, 3.32)
+	}
+
+	bench("SUM", f)
+}
+
+func benchSetNx() {
+	n := rand.Int()
+	f := func() {
+		waitBench("SETNX", string(n), n)
+	}
+
+	bench("SETNX", f)
 }
 
 func main() {
@@ -75,4 +142,12 @@ func main() {
 	loop = *number / *clients
 	client, _ = broadcast.NewClient(*port, *ip, 1)
 	benchSet()
+	benchPing()
+	benchGet()
+	benchDel()
+	benchIncr()
+	benchDecr()
+	benchCount()
+	benchSum()
+	benchSetNx()
 }

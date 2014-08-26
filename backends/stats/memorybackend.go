@@ -1,7 +1,6 @@
 package stats
 
 import (
-	"errors"
 	"sync"
 	"time"
 )
@@ -47,7 +46,7 @@ func (mem *MemoryBackend) FlushCounters() error {
 		v.Rate.AvgHistory = append(v.Rate.AvgHistory, ratePrev)
 		l := len(v.Rate.AvgHistory)
 		if l > mem.maxCounterHistory {
-			v.Rate.AvgHistory = v.Rate.AvgHistory[mem.maxCounterHistory-l:]
+			v.Rate.AvgHistory = v.Rate.AvgHistory[l-mem.maxCounterHistory:]
 		}
 		v.Value = 0
 	}
@@ -144,7 +143,7 @@ func (mem *MemoryBackend) Get(name string) (int, error) {
 	if ok {
 		return v, nil
 	} else {
-		return 0, errors.New("invalid key")
+		return 0, nil
 	}
 }
 

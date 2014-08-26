@@ -3,6 +3,7 @@ package server
 import (
 	"errors"
 	"fmt"
+	"io"
 	"net"
 	"os"
 	"runtime"
@@ -165,10 +166,10 @@ func (app *BroadcastServer) AcceptConnections() {
 			continue
 		}
 
-		app.Events <- BroadcastEvent{"accept", fmt.Sprintf("client %s connected to server", client.addr), nil, nil}
+		//app.Events <- BroadcastEvent{"accept", fmt.Sprintf("client %s connected to server", client.addr), nil, nil}
 		go func() {
 			<-client.Quit
-			app.Events <- BroadcastEvent{"disconnect", fmt.Sprintf("client %s disconnected from server", client.addr), nil, nil}
+			//app.Events <- BroadcastEvent{"disconnect", fmt.Sprintf("client %s disconnected from server", client.addr), nil, nil}
 			delete(app.clients, client.addr)
 			app.size--
 		}()
@@ -210,7 +211,9 @@ func (app *BroadcastServer) runClient(client *NetworkClient) {
 	for !client.closed {
 		data, err := client.Read()
 		if err != nil {
-			app.Events <- BroadcastEvent{"error", "read error", err, nil}
+			if err != io.EOF {
+				app.Events <- BroadcastEvent{"error", "read error", err, nil}
+			}
 			client.Close()
 			return
 		}
@@ -233,7 +236,7 @@ func (app *BroadcastServer) handle(data interface{}, client *NetworkClient) erro
 				args = data[1:]
 			}
 
-			if cmd == "QUIT" {
+			if cmd == CMDQUIT {
 				client.WriteString(OK)
 				client.Flush()
 				client.Close()

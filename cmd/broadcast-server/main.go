@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/signal"
 	"runtime"
+	"runtime/pprof"
 	"syscall"
 	"time"
 
@@ -33,6 +34,7 @@ func main() {
 	var port = flag.Int("p", 7331, "Broadcast server port to bind to")
 	var statsBackend = flag.Bool("stats", true, "Broadcast server stats backend")
 	var configFile = flag.String("config", "", "Broadcast server configuration file (/etc/broadcast.conf)")
+	var cpuProfile = flag.String("cpuprofile", "", "write cpu profile to file")
 
 	flag.Parse()
 
@@ -50,6 +52,15 @@ func main() {
 			fmt.Println(err)
 			return
 		}
+	}
+
+	if *cpuProfile != "" {
+		f, err := os.Create(*cpuProfile)
+		if err != nil {
+			fmt.Println(err)
+			return
+		}
+		pprof.StartCPUProfile(f)
 	}
 
 	// create a new broadcast server
@@ -90,6 +101,7 @@ func main() {
 
 	go func() {
 		<-app.Quit
+		pprof.StopCPUProfile()
 		os.Exit(0)
 	}()
 
