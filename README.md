@@ -11,19 +11,23 @@ while being able to work directly with typed data.
 
 ## Features
 
-+ broadcast-server can listen on tcp or udp
++ broadcast-server can listen on tcp
 + supports reading and writing: int64, float64, string, byte, []byte,
   error, and bool.
 + registered command callbacks will receive typed data as it was parsed
   (i.e. ADD will receive an array of numbers which might be floats/ints)
 + broadcast-cli connects to the server to see a list of routines supported
   by the server and caches them locally for easy lookup & auto-completion
-+ cluster-aware, broadcast-server can easily distribute load using a
-  hashring configuration. (i.e. broadcast-cluster)
 + stats-aware, broadcast has built in stats tracking to not only monitor 
   it's own state and report it out, but is able to handle generic stat
   routines through extended modules (i.e. broadcast-stats)
-+ supported clients including: Golang, node.js, C/C++, Python
+
+## TODO
++ listen on udp
++ cluster-aware configuration, allow broadcast-server to inspect commands 
+  and determine whether both the command or the first key of the arguments
+  is handled by a different server altogether using a hashring config.
++ add additional language clients (node.js, python, c#) 
 
 ## Build and Install
 
