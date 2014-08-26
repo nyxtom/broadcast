@@ -248,3 +248,8 @@ SUM
 
 127.0.0.1:7331> 
 ```
+
+*broadcast-cli* also provides command completion and help via help
+<command>. All commands are cached on start-up, to refresh the list of
+available commands (in the event the server is restarted with new
+commands) you will need to be sure to exit the cli as well.
