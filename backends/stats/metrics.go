@@ -207,33 +207,15 @@ func RegisterBackend(app *server.BroadcastServer) (server.Backend, error) {
 
 	backend.mem = mem
 
-	commandHelp := []server.Command{
-		server.Command{"COUNT", "Increments a key that resets itself to 0 on each flush routine.", "COUNT foo [124]", true},
-		server.Command{"COUNTERS", "Returns the list of active counters.", "", false},
-		server.Command{"INCR", "Increments a key by the specified value or by default 1.", "INCR key [1]", true},
-		server.Command{"DECR", "Decrements a key by the specified value or by default 1.", "DECR key [1]", true},
-		server.Command{"DEL", "Deletes a key from the values or counters list or both.", "DEL key", true},
-		server.Command{"EXISTS", "Determines if the given key exists from the values.", "EXISTS key", false},
-		server.Command{"GET", "Gets the specified key from the values.", "GET key", false},
-		server.Command{"SET", "Sets the specified key to the specified value in values.", "SET key 1234", true},
-		server.Command{"SETNX", "Sets the specified key to the given value only if the key is not already set.", "SETNX key 1234", true},
-	}
-	commands := []server.Handler{
-		backend.Count,
-		backend.Counters,
-		backend.Incr,
-		backend.Decr,
-		backend.Del,
-		backend.Exists,
-		backend.Get,
-		backend.Set,
-		backend.SetNx,
-	}
-
-	for i, _ := range commandHelp {
-		app.RegisterCommand(commandHelp[i], commands[i])
-	}
-
+	app.RegisterCommand(server.Command{"COUNT", "Increments a key that resets itself to 0 on each flush routine.", "COUNT foo [124]", true}, backend.Count)
+	app.RegisterCommand(server.Command{"COUNTERS", "Returns the list of active counters.", "", false}, backend.Counters)
+	app.RegisterCommand(server.Command{"INCR", "Increments a key by the specified value or by default 1.", "INCR key [1]", false}, backend.Incr)
+	app.RegisterCommand(server.Command{"DECR", "Decrements a key by the specified value or by default 1.", "DECR key [1]", false}, backend.Decr)
+	app.RegisterCommand(server.Command{"DEL", "Deletes a key from the values or counters list or both.", "DEL key", false}, backend.Del)
+	app.RegisterCommand(server.Command{"EXISTS", "Determines if the given key exists from the values.", "EXISTS key", false}, backend.Exists)
+	app.RegisterCommand(server.Command{"GET", "Gets the specified key from the values.", "GET key", false}, backend.Get)
+	app.RegisterCommand(server.Command{"SET", "Sets the specified key to the specified value in values.", "SET key 1234", false}, backend.Set)
+	app.RegisterCommand(server.Command{"SETNX", "Sets the specified key to the given value only if the key is not already set.", "SETNX key 1234", false}, backend.SetNx)
 	return backend, nil
 }
 

@@ -13,6 +13,7 @@ import (
 )
 
 var helpCommands = [][]string{}
+var helpCommandsMap = make(map[string]int)
 
 func main() {
 	var ip = flag.String("h", "127.0.0.1", "broadcast server ip (default 127.0.0.1)")
@@ -77,6 +78,8 @@ func main() {
 			cmd := strings.ToUpper(cmds[0])
 			if strings.ToLower(cmd) == "help" || cmd == "?" {
 				printHelp(cmds)
+			} else if cmd == "CMDS" {
+				printCmds()
 			} else {
 				async := isCmdAsync(cmd)
 				if async {
@@ -119,6 +122,7 @@ func printReply(cmd string, reply interface{}, indent string) {
 			async := fmt.Sprintf("%v", (cmd["FireForget"].(bool)))
 			if helpReply {
 				helpCommands = append(helpCommands, []string{k, usage, desc, async})
+				helpCommandsMap[k] = len(helpCommands) - 1
 			} else {
 				printCommandHelp([]string{k, usage, desc, async})
 			}
@@ -187,6 +191,19 @@ func printCommandHelp(arr []string) {
 		fmt.Printf("\n usage: %s", arr[1])
 	}
 	fmt.Printf("\n\n")
+}
+
+func printCmds() {
+	var cmds []string
+	for _, v := range helpCommands {
+		cmds = append(cmds, v[0])
+	}
+
+	sort.Strings(cmds)
+	for _, v := range cmds {
+		i := helpCommandsMap[v]
+		printCommandHelp(helpCommands[i])
+	}
 }
 
 func printHelp(cmds []string) {
