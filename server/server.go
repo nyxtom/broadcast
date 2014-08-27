@@ -48,7 +48,7 @@ type Backend interface {
 	Unload() error
 }
 
-// Listen will use the given address parameters to construct a simple server that listens for incomming clients
+// Listen will use the given address parameters to construct a simple server that listens for incoming clients
 func Listen(port int, host string) (*BroadcastServer, error) {
 	app := new(BroadcastServer)
 	app.protocol = "tcp"
@@ -148,11 +148,11 @@ func (app *BroadcastServer) Close() {
 	close(app.Quit)
 }
 
-// AcceptConnections will use the network listener for incomming clients in order to handle those connections
+// AcceptConnections will use the network listener for incoming clients in order to handle those connections
 // in an async manner. This will setup routines for both reading and writing to a connected client
 func (app *BroadcastServer) AcceptConnections() {
 	app.Events <- BroadcastEvent{"info", fmt.Sprintf(app.Header, app.Name, app.Version, app.bit, app.port, app.pid), nil, nil}
-	app.Events <- BroadcastEvent{"info", "broadcast server started listening on " + app.Address(), nil, nil}
+	app.Events <- BroadcastEvent{"info", "listening for incoming connections on " + app.Address(), nil, nil}
 
 	for !app.Closed {
 		connection, err := app.listener.Accept()
