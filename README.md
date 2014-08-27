@@ -105,7 +105,7 @@ func RegisterBackend(app *server.BroadcastServer) (server.Backend, error) {
 ```
 
 Commands can be async (fire and forget) or non-async (i.e. the callback
-will write a response to the command line. Specifying the type of of
+will write a response to the command line. Specifying the type of async 
 command allows the client library to know whether to read directly off of
 the response when sending a command or to simple fire and forget. This is
 useful if we are dealing with a lot of messages and we don't particularly
