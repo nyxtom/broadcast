@@ -40,7 +40,7 @@ golang installed. Otherwise, you can create the workspace and run make.
 go get github.com/nyxtom/broadcast
 ```
 
-## Broadcast-Stats: statsd example server
+## Broadcast-Stats: example server implementation with stats commands
 
 Broadcast-stats is a server that runs on top of the broadcast library.
 This simple server will store an in-memory model of stat data, while
@@ -48,7 +48,7 @@ responding to various stat commands registered when the server starts up.
 Commands can be retrieved from any broadcast-cli appropriately.
 
 ```
-broadcast-server -stats=true
+broadcast-stats
 ```
 
 The above command will load the backend from the location:
@@ -277,21 +277,21 @@ PING
 available commands (in the event the server is restarted with new
 commands) you will need to be sure to exit the cli as well.
 
-With broadcast-server -stats=true, the available commands will shift to
+With broadcast-stats, the available commands will shift to
 something more along the lines of below:
 
 ```
-$ broadcast-server -stats=true
-[15652] 25 Aug 14 18:26 MDT # WARNING: no config file specified, using the default config
-[15652] 25 Aug 14 18:26 MDT #
+$ broadcast-stats
+[45206] 27 Aug 14 13:27 MDT # WARNING: no config file specified, using the default config
+[45206] 27 Aug 14 13:27 MDT #
 
-  _                             Broadcast 0.1.0 64 bit
-   /_)__  _   _/_  _   __/_
-   /_)//_//_|/_//_ /_|_\ /      Port: 7331
-                                PID: 15652
+  _                         _                  Broadcast Stats 0.1 64 bit
+   /_)__  _   _/_  _   __/_  /_'_/__ _/_ _
+   /_)//_//_|/_//_ /_|_\ /   ._/ / /_|/ _\     Port: 7331
+                                               PID: 45206
 
 
-[15652] 25 Aug 14 18:26 MDT # broadcast server started listening on 127.0.0.1:7331
+[45206] 27 Aug 14 13:27 MDT # broadcast server started listening on 127.0.0.1:7331
 ```
 
 ```
