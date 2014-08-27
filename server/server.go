@@ -236,7 +236,11 @@ func (app *BroadcastServer) handle(data interface{}, client *NetworkClient) erro
 			cmd := ""
 			args := make([]interface{}, 0)
 			if len(data) > 0 {
-				cmd = strings.ToUpper(data[0].(string))
+				if b, ok := data[0].([]uint8); ok {
+					cmd = strings.ToUpper(string(b))
+				} else {
+					cmd = strings.ToUpper(data[0].(string))
+				}
 				args = data[1:]
 			}
 

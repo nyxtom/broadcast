@@ -3,32 +3,33 @@ package stats
 import (
 	"errors"
 	"fmt"
+	"strconv"
 	"time"
 
 	"github.com/nyxtom/broadcast/server"
 )
 
 type Metrics interface {
-	Counter(name string) (int, error)
-	CounterBy(name string, count int) (int, error)
+	Counter(name string) (int64, error)
+	CounterBy(name string, count int64) (int64, error)
 	FlushCounters() error
 
 	Counters() (map[string]*Counter, error)
 
-	Incr(name string) (int, error)
-	IncrBy(name string, count int) (int, error)
+	Incr(name string) (int64, error)
+	IncrBy(name string, count int64) (int64, error)
 
-	Decr(name string) (int, error)
-	DecrBy(name string, count int) (int, error)
+	Decr(name string) (int64, error)
+	DecrBy(name string, count int64) (int64, error)
 
-	Del(name string) (int, error)
+	Del(name string) (int64, error)
 
-	Exists(name string) (int, error)
+	Exists(name string) (int64, error)
 
-	Get(name string) (int, error)
+	Get(name string) (int64, error)
 
-	Set(name string, value int) (int, error)
-	SetNx(name string, value int) (int, error)
+	Set(name string, value int64) (int64, error)
+	SetNx(name string, value int64) (int64, error)
 }
 
 type StatsBackend struct {
@@ -39,13 +40,56 @@ type StatsBackend struct {
 	mem   Metrics
 }
 
-func (stats *StatsBackend) FlushInt(i int, err error, client *server.NetworkClient) error {
+func (stats *StatsBackend) FlushInt(i int64, err error, client *server.NetworkClient) error {
 	if err != nil {
 		return err
 	}
-	client.WriteInt64(int64(i))
+	client.WriteInt64(i)
 	client.Flush()
 	return nil
+}
+
+func (stats *StatsBackend) readString(d interface{}) (string, error) {
+	switch d := d.(type) {
+	case []byte:
+		return string(d), nil
+	case string:
+		return d, nil
+	default:
+		return fmt.Sprintf("%v", d), nil
+	}
+}
+
+func (stats *StatsBackend) readInt64(d interface{}) (int64, error) {
+	switch d := d.(type) {
+	case []byte:
+		return strconv.ParseInt(string(d), 10, 64)
+	case int64:
+		return d, nil
+	case int32:
+		return int64(d), nil
+	case int16:
+		return int64(d), nil
+	case byte:
+		return int64(d), nil
+	case string:
+		return strconv.ParseInt(d, 10, 64)
+	}
+
+	return 0, errors.New("invalid type")
+}
+
+func (stats *StatsBackend) readStringInt64(d []interface{}) (string, int64, error) {
+	key, err := stats.readString(d[0])
+	if err != nil {
+		return "", 0, err
+	}
+	value, err := stats.readInt64(d[1])
+	if err != nil {
+		return "", 0, err
+	}
+
+	return key, value, nil
 }
 
 func (stats *StatsBackend) Set(data interface{}, client *server.NetworkClient) error {
@@ -55,9 +99,11 @@ func (stats *StatsBackend) Set(data interface{}, client *server.NetworkClient) e
 		client.Flush()
 		return nil
 	} else {
-		key := d[0].(string)
-		value := d[1].(int64)
-		i, err := stats.mem.Set(key, int(value))
+		key, value, err := stats.readStringInt64(d)
+		if err != nil {
+			return err
+		}
+		i, err := stats.mem.Set(key, value)
 		return stats.FlushInt(i, err, client)
 	}
 }
@@ -69,9 +115,11 @@ func (stats *StatsBackend) SetNx(data interface{}, client *server.NetworkClient)
 		client.Flush()
 		return nil
 	} else {
-		key := d[0].(string)
-		value := d[1].(int64)
-		i, err := stats.mem.SetNx(key, int(value))
+		key, value, err := stats.readStringInt64(d)
+		if err != nil {
+			return err
+		}
+		i, err := stats.mem.SetNx(key, value)
 		return stats.FlushInt(i, err, client)
 	}
 }
@@ -83,16 +131,9 @@ func (stats *StatsBackend) Get(data interface{}, client *server.NetworkClient) e
 		client.Flush()
 		return nil
 	} else {
-		var key string
-		switch d[0].(type) {
-		case []byte:
-			key = string(d[0].([]byte))
-			fmt.Println(key)
-			fmt.Println(d[0].([]byte))
-		case string:
-			key = d[0].(string)
-		default:
-			key = fmt.Sprintf("%v", d[0])
+		key, err := stats.readString(d[0])
+		if err != nil {
+			return err
 		}
 		i, err := stats.mem.Get(key)
 		return stats.FlushInt(i, err, client)
@@ -106,7 +147,10 @@ func (stats *StatsBackend) Exists(data interface{}, client *server.NetworkClient
 		client.Flush()
 		return nil
 	} else {
-		key := fmt.Sprintf("%v", d[0])
+		key, err := stats.readString(d[0])
+		if err != nil {
+			return err
+		}
 		i, err := stats.mem.Exists(key)
 		return stats.FlushInt(i, err, client)
 	}
@@ -119,7 +163,10 @@ func (stats *StatsBackend) Del(data interface{}, client *server.NetworkClient) e
 		client.Flush()
 		return nil
 	} else {
-		key := d[0].(string)
+		key, err := stats.readString(d[0])
+		if err != nil {
+			return err
+		}
 		i, err := stats.mem.Del(key)
 		return stats.FlushInt(i, err, client)
 	}
@@ -132,10 +179,16 @@ func (stats *StatsBackend) Incr(data interface{}, client *server.NetworkClient) 
 		client.Flush()
 		return nil
 	} else {
-		key := d[0].(string)
+		key, err := stats.readString(d[0])
+		if err != nil {
+			return err
+		}
 		values := d[1:]
 		if len(values) > 0 {
-			value := int(values[0].(int64))
+			value, err := stats.readInt64(values[0])
+			if err != nil {
+				return err
+			}
 			i, err := stats.mem.IncrBy(key, value)
 			return stats.FlushInt(i, err, client)
 		} else {
@@ -152,10 +205,16 @@ func (stats *StatsBackend) Decr(data interface{}, client *server.NetworkClient) 
 		client.Flush()
 		return nil
 	} else {
-		key := d[0].(string)
+		key, err := stats.readString(d[0])
+		if err != nil {
+			return err
+		}
 		values := d[1:]
 		if len(values) > 0 {
-			value := int(values[0].(int64))
+			value, err := stats.readInt64(values[0])
+			if err != nil {
+				return err
+			}
 			i, err := stats.mem.DecrBy(key, value)
 			return stats.FlushInt(i, err, client)
 		} else {
@@ -172,11 +231,17 @@ func (stats *StatsBackend) Count(data interface{}, client *server.NetworkClient)
 		client.Flush()
 		return nil
 	} else {
-		key := d[0].(string)
+		key, err := stats.readString(d[0])
+		if err != nil {
+			return err
+		}
 		values := d[1:]
 		if len(values) > 0 {
-			value := int(values[0].(int64))
-			_, err := stats.mem.CounterBy(key, value)
+			value, err := stats.readInt64(values[0])
+			if err != nil {
+				return err
+			}
+			_, err = stats.mem.CounterBy(key, value)
 			return err
 		} else {
 			_, err := stats.mem.Counter(key)

@@ -9,13 +9,13 @@ type MemoryBackend struct {
 	sync.Mutex
 
 	counters          map[string]*Counter
-	values            map[string]int
+	values            map[string]int64
 	maxCounterHistory int
 	lastTimeStamp     time.Time
 }
 
 type Counter struct {
-	Value int // total for the given counter
+	Value int64 // total for the given counter
 	Rate  *CounterRate
 }
 
@@ -27,7 +27,7 @@ type CounterRate struct {
 func NewMemoryBackend() (*MemoryBackend, error) {
 	mem := new(MemoryBackend)
 	mem.counters = make(map[string]*Counter)
-	mem.values = make(map[string]int)
+	mem.values = make(map[string]int64)
 	mem.maxCounterHistory = 100
 	mem.lastTimeStamp = time.Now()
 	return mem, nil
@@ -59,11 +59,11 @@ func (mem *MemoryBackend) Counters() (map[string]*Counter, error) {
 	return mem.counters, nil
 }
 
-func (mem *MemoryBackend) Counter(name string) (int, error) {
+func (mem *MemoryBackend) Counter(name string) (int64, error) {
 	return mem.CounterBy(name, 1)
 }
 
-func (mem *MemoryBackend) CounterBy(name string, count int) (int, error) {
+func (mem *MemoryBackend) CounterBy(name string, count int64) (int64, error) {
 	mem.Lock()
 	defer mem.Unlock()
 	if v, ok := mem.counters[name]; ok {
@@ -75,11 +75,11 @@ func (mem *MemoryBackend) CounterBy(name string, count int) (int, error) {
 	}
 }
 
-func (mem *MemoryBackend) Incr(name string) (int, error) {
+func (mem *MemoryBackend) Incr(name string) (int64, error) {
 	return mem.IncrBy(name, 1)
 }
 
-func (mem *MemoryBackend) IncrBy(name string, count int) (int, error) {
+func (mem *MemoryBackend) IncrBy(name string, count int64) (int64, error) {
 	mem.Lock()
 	defer mem.Unlock()
 	if v, ok := mem.values[name]; ok {
@@ -92,11 +92,11 @@ func (mem *MemoryBackend) IncrBy(name string, count int) (int, error) {
 	}
 }
 
-func (mem *MemoryBackend) Decr(name string) (int, error) {
+func (mem *MemoryBackend) Decr(name string) (int64, error) {
 	return mem.DecrBy(name, 1)
 }
 
-func (mem *MemoryBackend) DecrBy(name string, count int) (int, error) {
+func (mem *MemoryBackend) DecrBy(name string, count int64) (int64, error) {
 	mem.Lock()
 	defer mem.Unlock()
 	if v, ok := mem.values[name]; ok {
@@ -109,7 +109,7 @@ func (mem *MemoryBackend) DecrBy(name string, count int) (int, error) {
 	}
 }
 
-func (mem *MemoryBackend) Del(name string) (int, error) {
+func (mem *MemoryBackend) Del(name string) (int64, error) {
 	mem.Lock()
 	defer mem.Unlock()
 	deleted := 0
@@ -122,10 +122,10 @@ func (mem *MemoryBackend) Del(name string) (int, error) {
 		deleted++
 	}
 
-	return deleted, nil
+	return int64(deleted), nil
 }
 
-func (mem *MemoryBackend) Exists(name string) (int, error) {
+func (mem *MemoryBackend) Exists(name string) (int64, error) {
 	mem.Lock()
 	defer mem.Unlock()
 	_, ok := mem.values[name]
@@ -136,7 +136,7 @@ func (mem *MemoryBackend) Exists(name string) (int, error) {
 	}
 }
 
-func (mem *MemoryBackend) Get(name string) (int, error) {
+func (mem *MemoryBackend) Get(name string) (int64, error) {
 	mem.Lock()
 	defer mem.Unlock()
 	v, ok := mem.values[name]
@@ -147,14 +147,14 @@ func (mem *MemoryBackend) Get(name string) (int, error) {
 	}
 }
 
-func (mem *MemoryBackend) Set(name string, value int) (int, error) {
+func (mem *MemoryBackend) Set(name string, value int64) (int64, error) {
 	mem.Lock()
 	defer mem.Unlock()
 	mem.values[name] = value
 	return 1, nil
 }
 
-func (mem *MemoryBackend) SetNx(name string, value int) (int, error) {
+func (mem *MemoryBackend) SetNx(name string, value int64) (int64, error) {
 	mem.Lock()
 	defer mem.Unlock()
 	if _, ok := mem.values[name]; !ok {
