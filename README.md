@@ -21,14 +21,15 @@ while being able to work directly with typed data.
 + stats-aware, broadcast has built in stats tracking to not only monitor 
   it's own state and report it out, but is able to handle generic stat
   routines through extended modules (i.e. broadcast-stats)
++ broadcast-benchmark for benchmarking various async/non-async commands
 
 ## TODO
-+ broadcast-benchmark for stats benchmarking
 + configuration/support for listening on udp
 + cluster-aware configuration, allow broadcast-server to inspect commands 
   and determine whether both the command or the first key of the arguments
   is handled by a different server altogether using a hashring config.
 + add additional language clients (node.js, python, c#) 
++ simple pub/sub protocol
 
 ## Build and Install
 
@@ -184,12 +185,12 @@ func CmdEcho(data interface{}, client *NetworkClient) error {
 }
 ```
 
-### SUM
+### SUM Example Command
 
 Sum is a command that will add up all the given parameters that 
 were passed into it by the client. Note how we can add both 
 floats and integers by inspecting the type. This is a simple command 
-that is automatically registered by the broadcast-server.
+that can be registered by the broadcast-server.
 
 ```
 package server
@@ -247,10 +248,6 @@ INFO
 PING
  Pings the server for a response
 
-SUM
- Performs the summation on 1-to-many numbers
- usage: SUM 10 21 32
-
 127.0.0.1:7331> 
 ```
 
@@ -290,10 +287,6 @@ EXISTS
 GET
  Gets the specified key from the values.
  usage: GET key
-
-SUM
- Performs the summation on 1-to-many numbers
- usage: SUM 10 21 32
 
 DECR
  Decrements a key by the specified value or by default 1.
