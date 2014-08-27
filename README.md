@@ -141,18 +141,17 @@ func (stats *StatsBackend) FlushInt(i int, err error, client *server.NetworkClie
 	return nil
 }
 
-func (stats *StatsBackend) Set(data interface{}, client *server.NetworkClient) error {
-	d, _ := data.([]interface{})
-	if len(d) < 2 {
-		client.WriteError(errors.New("SET takes at least 2 parameters (i.e. key to set and value to set to)"))
-		client.Flush()
-		return nil
-	} else {
-		key := d[0].(string)
-		value := d[1].(int64)
-		i, err := stats.mem.Set(key, int(value))
-		return stats.FlushInt(i, err, client)
-	}
+func (stats *StatsBackend) Exists(data interface{}, client *server.NetworkClient) error {
+    d, _ := data.([]interface{})
+    if len(d) == 0 {
+        client.WriteError(errors.New("EXISTS takes at least 1 parameter (i.e. key to find)"))
+        client.Flush()
+        return nil
+    } else {
+        key := fmt.Sprintf("%v", d[0])
+        i, err := stats.mem.Exists(key)
+        return stats.FlushInt(i, err, client)
+    }
 }
 ```
 
