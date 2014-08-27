@@ -74,15 +74,15 @@ func RegisterBackend(app *server.BroadcastServer) (server.Backend, error) {
 	backend.mem = mem
 
 	commandHelp := []server.Command{
-		server.Command{"COUNT", "Increments a key that resets itself to 0 on each flush routine.", "COUNT foo [124]"},
-		server.Command{"COUNTERS", "Returns the list of active counters.", ""},
-		server.Command{"INCR", "Increments a key by the specified value or by default 1.", "INCR key [1]"},
-		server.Command{"DECR", "Decrements a key by the specified value or by default 1.", "DECR key [1]"},
-		server.Command{"DEL", "Deletes a key from the values or counters list or both.", "DEL key"},
-		server.Command{"EXISTS", "Determines if the given key exists from the values.", "EXISTS key"},
-		server.Command{"GET", "Gets the specified key from the values.", "GET key"},
-		server.Command{"SET", "Sets the specified key to the specified value in values.", "SET key 1234"},
-		server.Command{"SETNX", "Sets the specified key to the given value only if the key is not already set.", "SETNX key 1234"},
+		server.Command{"COUNT", "Increments a key that resets itself to 0 on each flush routine.", "COUNT foo [124]", true},
+		server.Command{"COUNTERS", "Returns the list of active counters.", "", false},
+		server.Command{"INCR", "Increments a key by the specified value or by default 1.", "INCR key [1]", true},
+		server.Command{"DECR", "Decrements a key by the specified value or by default 1.", "DECR key [1]", true},
+		server.Command{"DEL", "Deletes a key from the values or counters list or both.", "DEL key", true},
+		server.Command{"EXISTS", "Determines if the given key exists from the values.", "EXISTS key", false},
+		server.Command{"GET", "Gets the specified key from the values.", "GET key", false},
+		server.Command{"SET", "Sets the specified key to the specified value in values.", "SET key 1234", true},
+		server.Command{"SETNX", "Sets the specified key to the given value only if the key is not already set.", "SETNX key 1234", true},
 	}
 	commands := []server.Handler{
 		backend.Count,
@@ -102,6 +102,28 @@ func RegisterBackend(app *server.BroadcastServer) (server.Backend, error) {
 
 	return backend, nil
 }
+```
+
+Commands can be async (fire and forget) or non-async (i.e. the callback
+will write a response to the command line. Specifying the type of of
+command allows the client library to know whether to read directly off of
+the response when sending a command or to simple fire and forget. This is
+useful if we are dealing with a lot of messages and we don't particularly
+care about the response. For instance, we could perform the following:
+
+```
+$ broadcast-cli -h="127.0.0.1" -p=7331
+127.0.0.1:7331> INCR foo 234
+
+127.0.0.1:7331> GET foo
+(integer) 234
+
+127.0.0.1:7331> SET foo 3
+
+127.0.0.1:7331> GET foo
+(integer) 3
+
+127.0.0.1:7331> 
 ```
 
 The server handlers are executed by the broadcast server whenever it encounters a command that was pre-registered. All callbacks 
@@ -160,7 +182,7 @@ func CmdPing(data interface{}, client *NetworkClient) error {
 And the broadcast-server will register this command on start-up like so:
 
 ```
-app.RegisterCommand(server.Command{"PING", "Pings the server for a response", ""}, server.CmdPing)
+app.RegisterCommand(server.Command{"PING", "Pings the server for a response", "", false}, server.CmdPing)
 ```
 
 ### ECHO
