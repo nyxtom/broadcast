@@ -67,7 +67,7 @@ func bench(cmd string, f func()) {
 func benchSet() {
 	n := rand.Int()
 	f := func() {
-		waitBenchAsync("SET", string(n), n)
+		waitBench("SET", string(n), n)
 	}
 
 	bench("SET", f)
@@ -84,7 +84,7 @@ func benchPing() {
 func benchIncr() {
 	n := rand.Int()
 	f := func() {
-		waitBenchAsync("INCR", string(n), 1)
+		waitBench("INCR", string(n), 1)
 	}
 
 	bench("INCR", f)
@@ -93,7 +93,7 @@ func benchIncr() {
 func benchDecr() {
 	n := rand.Int()
 	f := func() {
-		waitBenchAsync("DECR", string(n), 1)
+		waitBench("DECR", string(n), 1)
 	}
 
 	bench("DECR", f)
@@ -109,7 +109,7 @@ func benchGet() {
 
 func benchDel() {
 	f := func() {
-		waitBenchAsync("DEL", "foo")
+		waitBench("DEL", "foo")
 	}
 
 	bench("DEL", f)
@@ -126,7 +126,7 @@ func benchCount() {
 func benchSetNx() {
 	n := rand.Int()
 	f := func() {
-		waitBenchAsync("SETNX", string(n), n)
+		waitBench("SETNX", string(n), n)
 	}
 
 	bench("SETNX", f)
