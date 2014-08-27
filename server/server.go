@@ -19,7 +19,6 @@ type BroadcastServer struct {
 	port        int                       // port to listen on
 	host        string                    // host to bind to
 	addr        string                    // address to bind to
-	version     string                    // version of the broadcast server
 	bit         string                    // 32-bit vs 64-bit version
 	pid         int                       // pid of the broadcast server
 	listener    net.Listener              // listener for the broadcast server
@@ -31,6 +30,9 @@ type BroadcastServer struct {
 	Closed      bool                      // closed is the boolean for when the application has already been closed
 	Quit        chan struct{}             // quit is a simple channel signal for when the application quits
 	Events      chan BroadcastEvent       // events is a channel for when emitted data occurs in the application
+	Name        string                    // canonical name of the broadcast server
+	Version     string                    // version of the broadcast server
+	Header      string                    // header for the broadcast server
 }
 
 type BroadcastServerStatus struct {
@@ -53,7 +55,6 @@ func Listen(port int, host string) (*BroadcastServer, error) {
 	app.port = port
 	app.host = host
 	app.addr = host + ":" + strconv.Itoa(port)
-	app.version = BroadcastVersion
 	app.bit = BroadcastBit
 	app.pid = os.Getpid()
 
@@ -73,6 +74,9 @@ func Listen(port int, host string) (*BroadcastServer, error) {
 	app.Closed = false
 	app.Quit = make(chan struct{})
 	app.Events = make(chan BroadcastEvent)
+	app.Name = "Broadcast"
+	app.Version = BroadcastVersion
+	app.Header = LogoHeader
 	return app, nil
 }
 
@@ -147,7 +151,7 @@ func (app *BroadcastServer) Close() {
 // AcceptConnections will use the network listener for incomming clients in order to handle those connections
 // in an async manner. This will setup routines for both reading and writing to a connected client
 func (app *BroadcastServer) AcceptConnections() {
-	app.Events <- BroadcastEvent{"info", fmt.Sprintf(LogoHeader, app.version, app.bit, app.port, app.pid), nil, nil}
+	app.Events <- BroadcastEvent{"info", fmt.Sprintf(app.Header, app.Name, app.Version, app.bit, app.port, app.pid), nil, nil}
 	app.Events <- BroadcastEvent{"info", "broadcast server started listening on " + app.Address(), nil, nil}
 
 	for !app.Closed {

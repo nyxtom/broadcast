@@ -17,7 +17,7 @@ var BroadcastVersion = "0.1.0"
 var BroadcastBit = "64 bit"
 var LogoHeader = `
 
-  _                             Broadcast %s %s
+  _                             %s %s %s
    /_)__  _   _/_  _   __/_     
    /_)//_//_|/_//_ /_|_\ /      Port: %d
                                 PID: %d

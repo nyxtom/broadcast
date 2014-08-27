@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/BurntSushi/toml"
+	"github.com/nyxtom/broadcast/backends/stats"
 	"github.com/nyxtom/broadcast/server"
 )
 
@@ -20,14 +21,23 @@ type Configuration struct {
 	host string // host of the server
 }
 
+var LogoHeader = `
+
+  _                         _                  %s %s %s
+   /_)__  _   _/_  _   __/_  /_'_/__ _/_ _
+   /_)//_//_|/_//_ /_|_\ /   ._/ / /_|/ _\     Port: %d
+                                               PID: %d
+
+`
+
 func main() {
 	// Leverage all cores available
 	runtime.GOMAXPROCS(runtime.NumCPU())
 
 	// Parse out flag parameters
-	var host = flag.String("h", "127.0.0.1", "Broadcast server host to bind to")
-	var port = flag.Int("p", 7331, "Broadcast server port to bind to")
-	var configFile = flag.String("config", "", "Broadcast server configuration file (/etc/broadcast.conf)")
+	var host = flag.String("h", "127.0.0.1", "Broadcast stats host to bind to")
+	var port = flag.Int("p", 7331, "Broadcast stats port to bind to")
+	var configFile = flag.String("config", "", "Broadcast stats configuration file (/etc/broadcast.conf)")
 	var cpuProfile = flag.String("cpuprofile", "", "write cpu profile to file")
 
 	flag.Parse()
@@ -59,10 +69,22 @@ func main() {
 
 	// create a new broadcast server
 	app, err := server.Listen(cfg.port, cfg.host)
+	app.Header = ""
+	app.Name = "Broadcast Stats"
+	app.Version = "0.1"
+	app.Header = LogoHeader
 	if err != nil {
 		fmt.Println(err)
 		return
 	}
+
+	// setup stats backend
+	backend, err := stats.RegisterBackend(app)
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+	app.LoadBackend(backend)
 
 	// wait for all events to fire so we can log them
 	pid := os.Getpid()
