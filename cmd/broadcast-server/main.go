@@ -22,9 +22,6 @@ type Configuration struct {
 	stats bool   // stats backend configuration enabled/disabled
 }
 
-type StatsConfiguration struct {
-}
-
 func main() {
 	// Leverage all cores available
 	runtime.GOMAXPROCS(runtime.NumCPU())
@@ -120,11 +117,10 @@ func main() {
 	}()
 
 	// register all relevant commands
-	app.RegisterCommand(server.Command{"PING", "Pings the server for a response", ""}, server.CmdPing)
-	app.RegisterCommand(server.Command{"ECHO", "Echos back a message sent", "ECHO \"hello world\""}, server.CmdEcho)
-	app.RegisterCommand(server.Command{"INFO", "Current server status and information", ""}, app.CmdInfo)
-	app.RegisterCommand(server.Command{"CMDS", "List of available commands supported by the server", ""}, app.CmdHelp)
-	app.RegisterCommand(server.Command{"SUM", "Performs the summation on 1-to-many numbers", "SUM 10 21 32"}, server.CmdSum)
+	app.RegisterCommand(server.Command{"PING", "Pings the server for a response", "", false}, server.CmdPing)
+	app.RegisterCommand(server.Command{"ECHO", "Echos back a message sent", "ECHO \"hello world\"", false}, server.CmdEcho)
+	app.RegisterCommand(server.Command{"INFO", "Current server status and information", "", false}, app.CmdInfo)
+	app.RegisterCommand(server.Command{"CMDS", "List of available commands supported by the server", "", false}, app.CmdHelp)
 
 	// accept incomming connections!
 	app.AcceptConnections()

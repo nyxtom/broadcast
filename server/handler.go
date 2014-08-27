@@ -8,4 +8,5 @@ type Command struct {
 	Name        string // name of the command
 	Description string // description of the command
 	Usage       string // example usage of the command
+	FireForget  bool   // true to ignore responses, false to wait for a response
 }

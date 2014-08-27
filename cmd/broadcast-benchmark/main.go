@@ -20,6 +20,20 @@ var client *broadcast.Client
 
 var loop = 0
 
+func waitBenchAsync(cmd string, args ...interface{}) {
+	defer wg.Done()
+
+	c := client.Get()
+	defer client.CloseConnection(c)
+	for i := 0; i < loop; i++ {
+		err := c.DoAsync(cmd, args...)
+		if err != nil {
+			fmt.Printf("do %s error %s", cmd, err.Error())
+			return
+		}
+	}
+}
+
 func waitBench(cmd string, args ...interface{}) {
 	defer wg.Done()
 
@@ -53,7 +67,7 @@ func bench(cmd string, f func()) {
 func benchSet() {
 	n := rand.Int()
 	f := func() {
-		waitBench("SET", string(n), n)
+		waitBenchAsync("SET", string(n), n)
 	}
 
 	bench("SET", f)
@@ -70,7 +84,7 @@ func benchPing() {
 func benchIncr() {
 	n := rand.Int()
 	f := func() {
-		waitBench("INCR", string(n), 1)
+		waitBenchAsync("INCR", string(n), 1)
 	}
 
 	bench("INCR", f)
@@ -79,7 +93,7 @@ func benchIncr() {
 func benchDecr() {
 	n := rand.Int()
 	f := func() {
-		waitBench("DECR", string(n), 1)
+		waitBenchAsync("DECR", string(n), 1)
 	}
 
 	bench("DECR", f)
@@ -95,7 +109,7 @@ func benchGet() {
 
 func benchDel() {
 	f := func() {
-		waitBench("DEL", "foo")
+		waitBenchAsync("DEL", "foo")
 	}
 
 	bench("DEL", f)
@@ -103,24 +117,16 @@ func benchDel() {
 
 func benchCount() {
 	f := func() {
-		waitBench("COUNT", "foo", 1)
+		waitBenchAsync("COUNT", "foo", 1)
 	}
 
 	bench("COUNT", f)
 }
 
-func benchSum() {
-	f := func() {
-		waitBench("SUM", 3, 3.32)
-	}
-
-	bench("SUM", f)
-}
-
 func benchSetNx() {
 	n := rand.Int()
 	f := func() {
-		waitBench("SETNX", string(n), n)
+		waitBenchAsync("SETNX", string(n), n)
 	}
 
 	bench("SETNX", f)
@@ -148,6 +154,5 @@ func main() {
 	benchIncr()
 	benchDecr()
 	benchCount()
-	benchSum()
 	benchSetNx()
 }

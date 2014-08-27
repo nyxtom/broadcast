@@ -57,8 +57,8 @@ func (stats *StatsBackend) Set(data interface{}, client *server.NetworkClient) e
 	} else {
 		key := d[0].(string)
 		value := d[1].(int64)
-		i, err := stats.mem.Set(key, int(value))
-		return stats.FlushInt(i, err, client)
+		_, err := stats.mem.Set(key, int(value))
+		return err
 	}
 }
 
@@ -71,8 +71,8 @@ func (stats *StatsBackend) SetNx(data interface{}, client *server.NetworkClient)
 	} else {
 		key := d[0].(string)
 		value := d[1].(int64)
-		i, err := stats.mem.SetNx(key, int(value))
-		return stats.FlushInt(i, err, client)
+		_, err := stats.mem.SetNx(key, int(value))
+		return err
 	}
 }
 
@@ -83,7 +83,17 @@ func (stats *StatsBackend) Get(data interface{}, client *server.NetworkClient) e
 		client.Flush()
 		return nil
 	} else {
-		key := d[0].(string)
+		var key string
+		switch d[0].(type) {
+		case []byte:
+			key = string(d[0].([]byte))
+			fmt.Println(key)
+			fmt.Println(d[0].([]byte))
+		case string:
+			key = d[0].(string)
+		default:
+			key = fmt.Sprintf("%v", d[0])
+		}
 		i, err := stats.mem.Get(key)
 		return stats.FlushInt(i, err, client)
 	}
@@ -110,8 +120,8 @@ func (stats *StatsBackend) Del(data interface{}, client *server.NetworkClient) e
 		return nil
 	} else {
 		key := d[0].(string)
-		i, err := stats.mem.Del(key)
-		return stats.FlushInt(i, err, client)
+		_, err := stats.mem.Del(key)
+		return err
 	}
 }
 
@@ -126,11 +136,11 @@ func (stats *StatsBackend) Incr(data interface{}, client *server.NetworkClient) 
 		values := d[1:]
 		if len(values) > 0 {
 			value := int(values[0].(int64))
-			i, err := stats.mem.IncrBy(key, value)
-			return stats.FlushInt(i, err, client)
+			_, err := stats.mem.IncrBy(key, value)
+			return err
 		} else {
-			i, err := stats.mem.Incr(key)
-			return stats.FlushInt(i, err, client)
+			_, err := stats.mem.Incr(key)
+			return err
 		}
 	}
 }
@@ -146,11 +156,11 @@ func (stats *StatsBackend) Decr(data interface{}, client *server.NetworkClient) 
 		values := d[1:]
 		if len(values) > 0 {
 			value := int(values[0].(int64))
-			i, err := stats.mem.DecrBy(key, value)
-			return stats.FlushInt(i, err, client)
+			_, err := stats.mem.DecrBy(key, value)
+			return err
 		} else {
-			i, err := stats.mem.Decr(key)
-			return stats.FlushInt(i, err, client)
+			_, err := stats.mem.Decr(key)
+			return err
 		}
 	}
 }
@@ -166,11 +176,11 @@ func (stats *StatsBackend) Count(data interface{}, client *server.NetworkClient)
 		values := d[1:]
 		if len(values) > 0 {
 			value := int(values[0].(int64))
-			i, err := stats.mem.CounterBy(key, value)
-			return stats.FlushInt(i, err, client)
+			_, err := stats.mem.CounterBy(key, value)
+			return err
 		} else {
-			i, err := stats.mem.Counter(key)
-			return stats.FlushInt(i, err, client)
+			_, err := stats.mem.Counter(key)
+			return err
 		}
 	}
 }
@@ -198,15 +208,15 @@ func RegisterBackend(app *server.BroadcastServer) (server.Backend, error) {
 	backend.mem = mem
 
 	commandHelp := []server.Command{
-		server.Command{"COUNT", "Increments a key that resets itself to 0 on each flush routine.", "COUNT foo [124]"},
-		server.Command{"COUNTERS", "Returns the list of active counters.", ""},
-		server.Command{"INCR", "Increments a key by the specified value or by default 1.", "INCR key [1]"},
-		server.Command{"DECR", "Decrements a key by the specified value or by default 1.", "DECR key [1]"},
-		server.Command{"DEL", "Deletes a key from the values or counters list or both.", "DEL key"},
-		server.Command{"EXISTS", "Determines if the given key exists from the values.", "EXISTS key"},
-		server.Command{"GET", "Gets the specified key from the values.", "GET key"},
-		server.Command{"SET", "Sets the specified key to the specified value in values.", "SET key 1234"},
-		server.Command{"SETNX", "Sets the specified key to the given value only if the key is not already set.", "SETNX key 1234"},
+		server.Command{"COUNT", "Increments a key that resets itself to 0 on each flush routine.", "COUNT foo [124]", true},
+		server.Command{"COUNTERS", "Returns the list of active counters.", "", false},
+		server.Command{"INCR", "Increments a key by the specified value or by default 1.", "INCR key [1]", true},
+		server.Command{"DECR", "Decrements a key by the specified value or by default 1.", "DECR key [1]", true},
+		server.Command{"DEL", "Deletes a key from the values or counters list or both.", "DEL key", true},
+		server.Command{"EXISTS", "Determines if the given key exists from the values.", "EXISTS key", false},
+		server.Command{"GET", "Gets the specified key from the values.", "GET key", false},
+		server.Command{"SET", "Sets the specified key to the specified value in values.", "SET key 1234", true},
+		server.Command{"SETNX", "Sets the specified key to the given value only if the key is not already set.", "SETNX key 1234", true},
 	}
 	commands := []server.Handler{
 		backend.Count,

@@ -40,6 +40,12 @@ func (client *Client) Do(cmd string, args ...interface{}) (interface{}, error) {
 	return reply, err
 }
 
+func (client *Client) DoAsync(cmd string, args ...interface{}) error {
+	c := client.get()
+	err := c.DoAsync(cmd, args...)
+	return err
+}
+
 func (client *Client) Close() {
 	client.Lock()
 	defer client.Unlock()
@@ -95,25 +101,37 @@ type ClientConnection struct {
 	lastActive time.Time
 }
 
-func (c *ClientConnection) Do(cmd string, args ...interface{}) (interface{}, error) {
+func (c *ClientConnection) DoAsync(cmd string, args ...interface{}) error {
 	// ensure that we are connected
 	if err := c.connect(); err != nil {
-		return nil, err
+		return err
 	}
 
 	// execute/write the appropriate command
 	if err := c.netClient.WriteCommand(cmd, args); err != nil {
 		c.finalize()
-		return nil, err
+		return err
 	}
 
 	// flush the command out to the server itself
 	if err := c.netClient.Flush(); err != nil {
 		c.finalize()
+		return err
+	}
+
+	return nil
+}
+
+func (c *ClientConnection) Do(cmd string, args ...interface{}) (interface{}, error) {
+	err := c.DoAsync(cmd, args...)
+	if err != nil {
 		return nil, err
 	}
 
-	// read the reply from the server
+	return c.Read()
+}
+
+func (c *ClientConnection) Read() (interface{}, error) {
 	if reply, err := c.netClient.Read(); err != nil {
 		c.finalize()
 		return nil, err

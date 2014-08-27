@@ -74,20 +74,34 @@ func main() {
 				}
 			}
 
-			cmd := cmds[0]
+			cmd := strings.ToUpper(cmds[0])
 			if strings.ToLower(cmd) == "help" || cmd == "?" {
 				printHelp(cmds)
 			} else {
-				reply, err := c.Do(cmds[0], args...)
-				if err != nil {
-					fmt.Printf("%s", err.Error())
+				async := isCmdAsync(cmd)
+				if async {
+					c.DoAsync(cmd, args...)
 				} else {
-					printReply(cmd, reply, "")
+					reply, err := c.Do(cmd, args...)
+					if err != nil {
+						fmt.Printf("%s", err.Error())
+					} else {
+						printReply(cmd, reply, "")
+					}
 				}
 				fmt.Printf("\n")
 			}
 		}
 	}
+}
+
+func isCmdAsync(cmd string) bool {
+	for _, v := range helpCommands {
+		if v[0] == cmd && v[3] == "true" {
+			return true
+		}
+	}
+	return false
 }
 
 func printReply(cmd string, reply interface{}, indent string) {
@@ -102,10 +116,11 @@ func printReply(cmd string, reply interface{}, indent string) {
 			cmd := v.(map[string]interface{})
 			desc := cmd["Description"].(string)
 			usage := cmd["Usage"].(string)
+			async := fmt.Sprintf("%v", (cmd["FireForget"].(bool)))
 			if helpReply {
-				helpCommands = append(helpCommands, []string{k, usage, desc})
+				helpCommands = append(helpCommands, []string{k, usage, desc, async})
 			} else {
-				printCommandHelp([]string{k, usage, desc})
+				printCommandHelp([]string{k, usage, desc, async})
 			}
 		}
 		return
