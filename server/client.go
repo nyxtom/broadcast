@@ -128,6 +128,13 @@ func (client *BufferClient) WriteError(e error) error {
 	return err
 }
 
+func (client *BufferClient) WriteNull() error {
+	client.writer.WriteByte('$')
+	client.writer.Write(NullBulk)
+	_, err := client.writer.Write(Delims)
+	return err
+}
+
 func (client *BufferClient) WriteArray(args []interface{}) error {
 	err := client.WriteLen('*', len(args))
 	for _, arg := range args {
@@ -150,7 +157,7 @@ func (client *BufferClient) WriteArray(args []interface{}) error {
 		case []byte:
 			err = client.WriteBytes(arg)
 		case nil:
-			err = client.WriteString("")
+			err = client.WriteNull()
 		default:
 			var buf bytes.Buffer
 			fmt.Fprint(&buf, arg)

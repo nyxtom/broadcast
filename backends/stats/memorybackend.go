@@ -1,6 +1,7 @@
 package stats
 
 import (
+	"errors"
 	"sync"
 	"time"
 )
@@ -136,6 +137,8 @@ func (mem *MemoryBackend) Exists(name string) (int64, error) {
 	}
 }
 
+var ErrNotFound = errors.New("key not found")
+
 func (mem *MemoryBackend) Get(name string) (int64, error) {
 	mem.Lock()
 	defer mem.Unlock()
@@ -143,7 +146,7 @@ func (mem *MemoryBackend) Get(name string) (int64, error) {
 	if ok {
 		return v, nil
 	} else {
-		return 0, nil
+		return 0, ErrNotFound
 	}
 }
 

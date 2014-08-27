@@ -49,6 +49,12 @@ func (stats *StatsBackend) FlushInt(i int64, err error, client *server.NetworkCl
 	return nil
 }
 
+func (stats *StatsBackend) FlushNil(client *server.NetworkClient) error {
+	client.WriteNull()
+	client.Flush()
+	return nil
+}
+
 func (stats *StatsBackend) readString(d interface{}) (string, error) {
 	switch d := d.(type) {
 	case []byte:
@@ -136,6 +142,9 @@ func (stats *StatsBackend) Get(data interface{}, client *server.NetworkClient) e
 			return err
 		}
 		i, err := stats.mem.Get(key)
+		if err == ErrNotFound {
+			return stats.FlushNil(client)
+		}
 		return stats.FlushInt(i, err, client)
 	}
 }
@@ -163,12 +172,20 @@ func (stats *StatsBackend) Del(data interface{}, client *server.NetworkClient) e
 		client.Flush()
 		return nil
 	} else {
-		key, err := stats.readString(d[0])
-		if err != nil {
-			return err
+		i := int64(0)
+		for _, k := range d {
+			key, err := stats.readString(k)
+			if err != nil {
+				return err
+			}
+			i2, err := stats.mem.Del(key)
+			if err != nil {
+				return err
+			} else {
+				i += i2
+			}
 		}
-		i, err := stats.mem.Del(key)
-		return stats.FlushInt(i, err, client)
+		return stats.FlushInt(i, nil, client)
 	}
 }
 
