@@ -57,8 +57,8 @@ func (stats *StatsBackend) Set(data interface{}, client *server.NetworkClient) e
 	} else {
 		key := d[0].(string)
 		value := d[1].(int64)
-		_, err := stats.mem.Set(key, int(value))
-		return err
+		i, err := stats.mem.Set(key, int(value))
+		return stats.FlushInt(i, err, client)
 	}
 }
 
@@ -71,8 +71,8 @@ func (stats *StatsBackend) SetNx(data interface{}, client *server.NetworkClient)
 	} else {
 		key := d[0].(string)
 		value := d[1].(int64)
-		_, err := stats.mem.SetNx(key, int(value))
-		return err
+		i, err := stats.mem.SetNx(key, int(value))
+		return stats.FlushInt(i, err, client)
 	}
 }
 
@@ -120,8 +120,8 @@ func (stats *StatsBackend) Del(data interface{}, client *server.NetworkClient) e
 		return nil
 	} else {
 		key := d[0].(string)
-		_, err := stats.mem.Del(key)
-		return err
+		i, err := stats.mem.Del(key)
+		return stats.FlushInt(i, err, client)
 	}
 }
 
@@ -136,11 +136,11 @@ func (stats *StatsBackend) Incr(data interface{}, client *server.NetworkClient) 
 		values := d[1:]
 		if len(values) > 0 {
 			value := int(values[0].(int64))
-			_, err := stats.mem.IncrBy(key, value)
-			return err
+			i, err := stats.mem.IncrBy(key, value)
+			return stats.FlushInt(i, err, client)
 		} else {
-			_, err := stats.mem.Incr(key)
-			return err
+			i, err := stats.mem.Incr(key)
+			return stats.FlushInt(i, err, client)
 		}
 	}
 }
@@ -156,11 +156,11 @@ func (stats *StatsBackend) Decr(data interface{}, client *server.NetworkClient) 
 		values := d[1:]
 		if len(values) > 0 {
 			value := int(values[0].(int64))
-			_, err := stats.mem.DecrBy(key, value)
-			return err
+			i, err := stats.mem.DecrBy(key, value)
+			return stats.FlushInt(i, err, client)
 		} else {
-			_, err := stats.mem.Decr(key)
-			return err
+			i, err := stats.mem.Decr(key)
+			return stats.FlushInt(i, err, client)
 		}
 	}
 }
