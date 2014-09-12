@@ -35,6 +35,7 @@ func NewRedisProtocolClientSize(conn net.Conn, bufferSize int) *RedisProtocolCli
 	client.Reader = bufio.NewReaderSize(conn, bufferSize)
 	client.Writer = bufio.NewWriterSize(conn, bufferSize)
 	client.Addr = conn.RemoteAddr().String()
+	client.Quit = make(chan struct{})
 	return client
 }
 

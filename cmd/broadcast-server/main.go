@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"flag"
 	"fmt"
 	"io/ioutil"
@@ -12,12 +13,14 @@ import (
 	"time"
 
 	"github.com/BurntSushi/toml"
+	"github.com/nyxtom/broadcast/protocols/redis"
 	"github.com/nyxtom/broadcast/server"
 )
 
 type Configuration struct {
-	port int    // port of the server
-	host string // host of the server
+	port      int    // port of the server
+	host      string // host of the server
+	bprotocol string // broadcast protocol configuration
 }
 
 func main() {
@@ -27,12 +30,13 @@ func main() {
 	// Parse out flag parameters
 	var host = flag.String("h", "127.0.0.1", "Broadcast server host to bind to")
 	var port = flag.Int("p", 7331, "Broadcast server port to bind to")
+	var bprotocol = flag.String("bprotocol", "", "Broadcast protocol configuration")
 	var configFile = flag.String("config", "", "Broadcast server configuration file (/etc/broadcast.conf)")
 	var cpuProfile = flag.String("cpuprofile", "", "write cpu profile to file")
 
 	flag.Parse()
 
-	cfg := &Configuration{*port, *host}
+	cfg := &Configuration{*port, *host, *bprotocol}
 	if len(*configFile) == 0 {
 		fmt.Printf("[%d] %s # WARNING: no config file specified, using the default config\n", os.Getpid(), time.Now().Format(time.RFC822))
 	} else {
@@ -48,6 +52,17 @@ func main() {
 		}
 	}
 
+	// locate the protocol specified (if there is one)
+	var serverProtocol server.BroadcastServerProtocol
+	if cfg.bprotocol == "" {
+		serverProtocol = server.NewDefaultBroadcastServerProtocol()
+	} else if cfg.bprotocol == "redis" {
+		serverProtocol = protocols.NewRedisProtocol()
+	} else {
+		fmt.Println(errors.New("Invalid protocol " + cfg.bprotocol + " specified"))
+		return
+	}
+
 	if *cpuProfile != "" {
 		f, err := os.Create(*cpuProfile)
 		if err != nil {
@@ -58,7 +73,7 @@ func main() {
 	}
 
 	// create a new broadcast server
-	app, err := server.Listen(cfg.port, cfg.host)
+	app, err := server.ListenProtocol(cfg.port, cfg.host, serverProtocol)
 	if err != nil {
 		fmt.Println(err)
 		return

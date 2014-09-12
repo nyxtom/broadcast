@@ -9,6 +9,7 @@ import (
 	"io"
 	"net"
 	"strconv"
+	"strings"
 	"sync"
 )
 
@@ -201,7 +202,7 @@ func (client *BufferClient) WriteJson(arg interface{}) error {
 
 func (client *BufferClient) WriteCommand(cmd string, args []interface{}) error {
 	argsmod := make([]interface{}, len(args)+1)
-	argsmod[0] = cmd
+	argsmod[0] = []byte(strings.ToUpper(cmd))
 	for i, v := range args {
 		argsmod[i+1] = v
 	}

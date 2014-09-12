@@ -18,8 +18,14 @@ type RedisProtocol struct {
 	ctx *server.BroadcastContext
 }
 
+func NewRedisProtocol() *RedisProtocol {
+	return new(RedisProtocol)
+}
+
 func (p *RedisProtocol) Initialize(ctx *server.BroadcastContext) error {
 	p.ctx = ctx
+	p.ctx.RegisterHelp(server.Command{"INFO", "Current server status and information", "", false})
+	p.ctx.RegisterHelp(server.Command{"CMDS", "List of available commands supported by the server", "", false})
 	return nil
 }
 
@@ -52,7 +58,6 @@ func (p *RedisProtocol) RunClient(client server.ProtocolClient) {
 			if err != io.EOF {
 				p.ctx.Events <- server.BroadcastEvent{"error", "read error", err, nil}
 			}
-			c.Close()
 			return
 		}
 
@@ -61,7 +66,6 @@ func (p *RedisProtocol) RunClient(client server.ProtocolClient) {
 			if err == errQuit {
 				c.WriteString("OK")
 				c.Flush()
-				c.Close()
 				return
 			} else {
 				p.ctx.Events <- server.BroadcastEvent{"error", "accept error", err, nil}
@@ -72,14 +76,14 @@ func (p *RedisProtocol) RunClient(client server.ProtocolClient) {
 	}
 }
 
-func (p *RedisProtocol) cmdHelp(client *RedisProtocolClient) error {
+func (p *RedisProtocol) help(client *RedisProtocolClient) error {
 	help, _ := p.ctx.Help()
 	client.WriteJson(help)
 	client.Flush()
 	return nil
 }
 
-func (p *RedisProtocol) cmdInfo(client *RedisProtocolClient) error {
+func (p *RedisProtocol) info(client *RedisProtocolClient) error {
 	status, _ := p.ctx.Status()
 	client.WriteJson(status)
 	client.Flush()
@@ -91,9 +95,9 @@ func (p *RedisProtocol) handleData(data [][]byte, client *RedisProtocolClient) e
 	case bytes.Equal(data[0], []byte("QUIT")):
 		return errQuit
 	case bytes.Equal(data[0], []byte("CMDS")):
-		return p.cmdHelp(client)
+		return p.help(client)
 	case bytes.Equal(data[0], []byte("INFO")):
-		return p.cmdInfo(client)
+		return p.info(client)
 	default:
 		return errCmdNotFound
 	}
