@@ -19,7 +19,7 @@ func main() {
 	var ip = flag.String("h", "127.0.0.1", "broadcast server ip (default 127.0.0.1)")
 	var port = flag.Int("p", 7331, "broadcast server port (default 7331)")
 	var maxIdle = flag.Int("i", 1, "max idle client connections to pool from")
-	var bprotocol = flag.String("bprotocol", "", "broadcast server protocol to follow")
+	var bprotocol = flag.String("bprotocol", "redis", "broadcast server protocol to follow")
 
 	flag.Parse()
 

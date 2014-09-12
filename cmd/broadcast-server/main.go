@@ -38,7 +38,7 @@ func main() {
 	// Parse out flag parameters
 	var host = flag.String("h", "127.0.0.1", "Broadcast server host to bind to")
 	var port = flag.Int("p", 7331, "Broadcast server port to bind to")
-	var bprotocol = flag.String("bprotocol", "", "Broadcast protocol configuration")
+	var bprotocol = flag.String("bprotocol", "redis", "Broadcast protocol configuration")
 	var backends_default = flag.Bool("backends_default", true, "Broadcast default backend enabled")
 	var backends_stats = flag.Bool("backends_stats", false, "Broadcast stats backend enabled setting")
 	var configFile = flag.String("config", "", "Broadcast server configuration file (/etc/broadcast.conf)")
