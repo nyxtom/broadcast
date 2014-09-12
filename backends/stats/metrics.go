@@ -2,7 +2,6 @@ package stats
 
 import (
 	"errors"
-	"fmt"
 	"strconv"
 	"time"
 
@@ -55,37 +54,15 @@ func (stats *StatsBackend) FlushNil(client server.ProtocolClient) error {
 	return nil
 }
 
-func (stats *StatsBackend) readString(d interface{}) (string, error) {
-	switch d := d.(type) {
-	case []byte:
-		return string(d), nil
-	case string:
-		return d, nil
-	default:
-		return fmt.Sprintf("%v", d), nil
-	}
+func (stats *StatsBackend) readString(d []byte) (string, error) {
+	return string(d), nil
 }
 
-func (stats *StatsBackend) readInt64(d interface{}) (int64, error) {
-	switch d := d.(type) {
-	case []byte:
-		return strconv.ParseInt(string(d), 10, 64)
-	case int64:
-		return d, nil
-	case int32:
-		return int64(d), nil
-	case int16:
-		return int64(d), nil
-	case byte:
-		return int64(d), nil
-	case string:
-		return strconv.ParseInt(d, 10, 64)
-	}
-
-	return 0, errors.New("invalid type")
+func (stats *StatsBackend) readInt64(d []byte) (int64, error) {
+	return strconv.ParseInt(string(d), 10, 64)
 }
 
-func (stats *StatsBackend) readStringInt64(d []interface{}) (string, int64, error) {
+func (stats *StatsBackend) readStringInt64(d [][]byte) (string, int64, error) {
 	key, err := stats.readString(d[0])
 	if err != nil {
 		return "", 0, err
@@ -99,7 +76,7 @@ func (stats *StatsBackend) readStringInt64(d []interface{}) (string, int64, erro
 }
 
 func (stats *StatsBackend) Set(data interface{}, client server.ProtocolClient) error {
-	d, _ := data.([]interface{})
+	d, _ := data.([][]byte)
 	if len(d) < 2 {
 		client.WriteError(errors.New("SET takes at least 2 parameters (i.e. key to set and value to set to)"))
 		client.Flush()
@@ -115,7 +92,7 @@ func (stats *StatsBackend) Set(data interface{}, client server.ProtocolClient) e
 }
 
 func (stats *StatsBackend) SetNx(data interface{}, client server.ProtocolClient) error {
-	d, _ := data.([]interface{})
+	d, _ := data.([][]byte)
 	if len(d) < 2 {
 		client.WriteError(errors.New("SETNX takes at least 2 parameters (i.e. key to set and value to set to, if not already set)"))
 		client.Flush()
@@ -131,7 +108,7 @@ func (stats *StatsBackend) SetNx(data interface{}, client server.ProtocolClient)
 }
 
 func (stats *StatsBackend) Get(data interface{}, client server.ProtocolClient) error {
-	d, _ := data.([]interface{})
+	d, _ := data.([][]byte)
 	if len(d) == 0 {
 		client.WriteError(errors.New("GET takes at least 1 parameter (i.e. key to get)"))
 		client.Flush()
@@ -150,7 +127,7 @@ func (stats *StatsBackend) Get(data interface{}, client server.ProtocolClient) e
 }
 
 func (stats *StatsBackend) Exists(data interface{}, client server.ProtocolClient) error {
-	d, _ := data.([]interface{})
+	d, _ := data.([][]byte)
 	if len(d) == 0 {
 		client.WriteError(errors.New("EXISTS takes at least 1 parameter (i.e. key to find)"))
 		client.Flush()
@@ -166,7 +143,7 @@ func (stats *StatsBackend) Exists(data interface{}, client server.ProtocolClient
 }
 
 func (stats *StatsBackend) Del(data interface{}, client server.ProtocolClient) error {
-	d, _ := data.([]interface{})
+	d, _ := data.([][]byte)
 	if len(d) == 0 {
 		client.WriteError(errors.New("DEL takes at least 1 parameter (i.e. key to delete)"))
 		client.Flush()
@@ -190,7 +167,7 @@ func (stats *StatsBackend) Del(data interface{}, client server.ProtocolClient) e
 }
 
 func (stats *StatsBackend) Incr(data interface{}, client server.ProtocolClient) error {
-	d, _ := data.([]interface{})
+	d, _ := data.([][]byte)
 	if len(d) == 0 {
 		client.WriteError(errors.New("INCR takes at least 1 parameter (i.e. key to increment)"))
 		client.Flush()
@@ -216,7 +193,7 @@ func (stats *StatsBackend) Incr(data interface{}, client server.ProtocolClient) 
 }
 
 func (stats *StatsBackend) Decr(data interface{}, client server.ProtocolClient) error {
-	d, _ := data.([]interface{})
+	d, _ := data.([][]byte)
 	if len(d) == 0 {
 		client.WriteError(errors.New("DECR takes at least 1 parameter (i.e. key to increment)"))
 		client.Flush()
@@ -242,7 +219,7 @@ func (stats *StatsBackend) Decr(data interface{}, client server.ProtocolClient) 
 }
 
 func (stats *StatsBackend) Count(data interface{}, client server.ProtocolClient) error {
-	d, _ := data.([]interface{})
+	d, _ := data.([][]byte)
 	if len(d) == 0 {
 		client.WriteError(errors.New("COUNTER takes at least 1 parameter (i.e. key to increment)"))
 		client.Flush()

@@ -14,6 +14,7 @@ import (
 	"github.com/BurntSushi/toml"
 	"github.com/nyxtom/broadcast/backends/bdefault"
 	"github.com/nyxtom/broadcast/backends/stats"
+	"github.com/nyxtom/broadcast/protocols/redis"
 	"github.com/nyxtom/broadcast/server"
 )
 
@@ -69,7 +70,7 @@ func main() {
 	}
 
 	// create a new broadcast server
-	app, err := server.Listen(cfg.port, cfg.host)
+	app, err := server.ListenProtocol(cfg.port, cfg.host, redisProtocol.NewRedisProtocol())
 	app.Header = ""
 	app.Name = "Broadcast Stats"
 	app.Version = "0.1"
