@@ -12,6 +12,13 @@ import (
 	"sync"
 )
 
+type ProtocolClient interface {
+	Close()
+	IsClosed() bool
+	Address() string
+	WaitExit() chan struct{}
+}
+
 type BufferClient struct {
 	sync.Mutex
 
@@ -22,25 +29,37 @@ type BufferClient struct {
 type NetworkClient struct {
 	BufferClient
 
-	conn   net.Conn // network connection associated with this client
-	addr   string   // remote address identifier
-	closed bool     // closed boolean identifier
-	Quit   chan struct{}
+	Addr   string        // remote address identifier
+	Closed bool          // closed boolean identifier
+	Conn   net.Conn      // network connection associated with this client
+	Quit   chan struct{} // channel for when the client exits
 }
 
 // Close will shutdown any latent network connections and clear the client out
-func (netClient *NetworkClient) Close() {
+func (netClient NetworkClient) Close() {
 	netClient.Lock()
 	defer netClient.Unlock()
 
-	if netClient.conn == nil {
+	if netClient.Conn == nil {
 		return
 	}
 
-	netClient.closed = true
-	netClient.conn.Close()
-	netClient.conn = nil
+	netClient.Closed = true
+	netClient.Conn.Close()
+	netClient.Conn = nil
 	close(netClient.Quit)
+}
+
+func (netClient NetworkClient) IsClosed() bool {
+	return netClient.Closed
+}
+
+func (netClient NetworkClient) Address() string {
+	return netClient.Addr
+}
+
+func (netClient NetworkClient) WaitExit() chan struct{} {
+	return netClient.Quit
 }
 
 func NewNetworkClient(conn net.Conn) (*NetworkClient, error) {
@@ -50,10 +69,10 @@ func NewNetworkClient(conn net.Conn) (*NetworkClient, error) {
 
 func NewNetworkClientSize(conn net.Conn, bufferSize int) (*NetworkClient, error) {
 	client := new(NetworkClient)
-	client.conn = conn
+	client.Conn = conn
 	client.Reader = bufio.NewReaderSize(conn, bufferSize)
 	client.Writer = bufio.NewWriterSize(conn, bufferSize)
-	client.addr = conn.RemoteAddr().String()
+	client.Addr = conn.RemoteAddr().String()
 	client.Quit = make(chan struct{})
 	return client, nil
 }

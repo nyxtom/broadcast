@@ -103,12 +103,6 @@ func main() {
 		app.Close()
 	}()
 
-	// register all relevant commands
-	app.RegisterCommand(server.Command{"PING", "Pings the server for a response", "", false}, server.CmdPing)
-	app.RegisterCommand(server.Command{"ECHO", "Echos back a message sent", "ECHO \"hello world\"", false}, server.CmdEcho)
-	app.RegisterCommand(server.Command{"INFO", "Current server status and information", "", false}, app.CmdInfo)
-	app.RegisterCommand(server.Command{"CMDS", "List of available commands supported by the server", "", false}, app.CmdHelp)
-
 	// accept incomming connections!
 	app.AcceptConnections()
 }

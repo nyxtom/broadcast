@@ -18,9 +18,8 @@ type BroadcastServer struct {
 	bit      string                    // 32-bit vs 64-bit version
 	pid      int                       // pid of the broadcast server
 	listener net.Listener              // listener for the broadcast server
-	clients  map[string]*NetworkClient // clients is a map of all the connected clients to the server
+	clients  map[string]ProtocolClient // clients is a map of all the connected clients to the server
 	ctx      *BroadcastContext
-	size     int                     // size is the number of total clients connected to the server
 	backends []Backend               // registered backends with the broadcast server
 	protocol BroadcastServerProtocol // server protocol for handling connections
 	Closed   bool                    // closed is the boolean for when the application has already been closed
@@ -48,6 +47,8 @@ type Backend interface {
 func Listen(port int, host string) (*BroadcastServer, error) {
 	return ListenProtocol(port, host, NewDefaultBroadcastServerProtocol())
 }
+
+// ListenProtocol uses the address parameters and the specified protocol to construct the broadcast server
 func ListenProtocol(port int, host string, protocol BroadcastServerProtocol) (*BroadcastServer, error) {
 	app := new(BroadcastServer)
 	app.port = port
@@ -64,8 +65,7 @@ func ListenProtocol(port int, host string, protocol BroadcastServerProtocol) (*B
 
 	app.listener = listener
 	app.ctx = NewBroadcastContext()
-	app.clients = make(map[string]*NetworkClient)
-	app.size = 0
+	app.clients = make(map[string]ProtocolClient)
 	app.backends = make([]Backend, 0)
 	app.protocol = protocol
 
@@ -78,37 +78,20 @@ func ListenProtocol(port int, host string, protocol BroadcastServerProtocol) (*B
 	return app, nil
 }
 
+// Load will load the backend service
 func (app *BroadcastServer) LoadBackend(backend Backend) error {
 	app.backends = append(app.backends, backend)
 	return backend.Load()
 }
 
+// Status will return the current state of the system and process
 func (app *BroadcastServer) Status() (*BroadcastServerStatus, error) {
-	status := new(BroadcastServerStatus)
-	status.NumGoroutines = runtime.NumGoroutine()
-	status.NumCpu = runtime.NumCPU()
-	status.NumCgoCall = runtime.NumCgoCall()
-	status.NumClients = app.size
-	status.Memory = new(runtime.MemStats)
-	runtime.ReadMemStats(status.Memory)
-	return status, nil
+	return app.ctx.Status()
 }
 
-func (app *BroadcastServer) CmdInfo(data interface{}, client *NetworkClient) error {
-	status, err := app.Status()
-	if err != nil {
-		return err
-	}
-
-	client.WriteJson(status)
-	client.Flush()
-	return nil
-}
-
-func (app *BroadcastServer) CmdHelp(data interface{}, client *NetworkClient) error {
-	client.WriteJson(app.ctx.CommandHelp)
-	client.Flush()
-	return nil
+// Help will output the current context help commands
+func (app *BroadcastServer) Help() (map[string]Command, error) {
+	return app.ctx.CommandHelp, nil
 }
 
 // RegisterCommand takes a simple command structure and handler to assign both the help info and the handler itself
@@ -141,7 +124,7 @@ func (app *BroadcastServer) Close() {
 	app.Closed = true
 	for _, client := range app.clients {
 		client.Close()
-		app.size--
+		app.ctx.ClientSize--
 	}
 	for _, backend := range app.backends {
 		backend.Unload()
@@ -178,16 +161,15 @@ func (app *BroadcastServer) AcceptConnections() {
 			continue
 		}
 
-		app.clients[client.addr] = client
-		app.size++
+		app.clients[client.Address()] = client
+		app.ctx.ClientSize++
 
-		//app.Events <- BroadcastEvent{"accept", fmt.Sprintf("client %s connected to server", client.addr), nil, nil}
 		go func() {
-			<-client.Quit
-			//app.Events <- BroadcastEvent{"disconnect", fmt.Sprintf("client %s disconnected from server", client.addr), nil, nil}
-			delete(app.clients, client.addr)
-			app.size--
+			<-client.WaitExit()
+			delete(app.clients, client.Address())
+			app.ctx.ClientSize--
 		}()
+
 		go app.protocol.RunClient(client)
 	}
 }
