@@ -15,8 +15,8 @@ import (
 type BufferClient struct {
 	sync.Mutex
 
-	reader *bufio.Reader
-	writer *bufio.Writer
+	Reader *bufio.Reader
+	Writer *bufio.Writer
 }
 
 type NetworkClient struct {
@@ -51,87 +51,87 @@ func NewNetworkClient(conn net.Conn) (*NetworkClient, error) {
 func NewNetworkClientSize(conn net.Conn, bufferSize int) (*NetworkClient, error) {
 	client := new(NetworkClient)
 	client.conn = conn
-	client.reader = bufio.NewReaderSize(conn, bufferSize)
-	client.writer = bufio.NewWriterSize(conn, bufferSize)
+	client.Reader = bufio.NewReaderSize(conn, bufferSize)
+	client.Writer = bufio.NewWriterSize(conn, bufferSize)
 	client.addr = conn.RemoteAddr().String()
 	client.Quit = make(chan struct{})
 	return client, nil
 }
 
 func (client *BufferClient) Flush() error {
-	return client.writer.Flush()
+	return client.Writer.Flush()
 }
 
 // WriteLen will write the given prefix and integer to the command line
 func (client *BufferClient) WriteLen(prefix byte, n int) error {
-	client.writer.WriteByte(prefix)
-	client.writer.Write(strconv.AppendInt(nil, int64(n), 10))
-	_, err := client.writer.Write(Delims)
+	client.Writer.WriteByte(prefix)
+	client.Writer.Write(strconv.AppendInt(nil, int64(n), 10))
+	_, err := client.Writer.Write(Delims)
 	return err
 }
 
 /// WriteString will write the length of the string followed by the string data
 func (client *BufferClient) WriteString(s string) error {
-	client.writer.WriteByte('+')
-	client.writer.WriteString(s)
-	_, err := client.writer.Write(Delims)
+	client.Writer.WriteByte('+')
+	client.Writer.WriteString(s)
+	_, err := client.Writer.Write(Delims)
 	return err
 }
 
 func (client *BufferClient) WriteByte(b byte) error {
-	client.writer.WriteByte('&')
-	client.writer.WriteByte(b)
-	_, err := client.writer.Write(Delims)
+	client.Writer.WriteByte('&')
+	client.Writer.WriteByte(b)
+	_, err := client.Writer.Write(Delims)
 	return err
 }
 
 func (client *BufferClient) WriteBytes(b []byte) error {
 	client.WriteLen('$', len(b))
-	client.writer.Write(b)
-	_, err := client.writer.Write(Delims)
+	client.Writer.Write(b)
+	_, err := client.Writer.Write(Delims)
 	return err
 }
 
 func (client *BufferClient) WriteInt64(n int64) error {
-	client.writer.WriteByte(':')
-	client.writer.Write(strconv.AppendInt(nil, n, 10))
-	_, err := client.writer.Write(Delims)
+	client.Writer.WriteByte(':')
+	client.Writer.Write(strconv.AppendInt(nil, n, 10))
+	_, err := client.Writer.Write(Delims)
 	return err
 }
 
 func (client *BufferClient) WriteFloat64(n float64) error {
-	client.writer.WriteByte('.')
-	client.writer.Write(strconv.AppendFloat(nil, n, 'g', -1, 64))
-	_, err := client.writer.Write(Delims)
+	client.Writer.WriteByte('.')
+	client.Writer.Write(strconv.AppendFloat(nil, n, 'g', -1, 64))
+	_, err := client.Writer.Write(Delims)
 	return err
 }
 
 func (client *BufferClient) WriteBool(b bool) error {
-	client.writer.WriteByte('?')
+	client.Writer.WriteByte('?')
 	if b {
-		client.writer.WriteByte('1')
+		client.Writer.WriteByte('1')
 	} else {
-		client.writer.WriteByte('0')
+		client.Writer.WriteByte('0')
 	}
-	_, err := client.writer.Write(Delims)
+	_, err := client.Writer.Write(Delims)
 	return err
 }
 
 func (client *BufferClient) WriteError(e error) error {
-	client.writer.WriteByte('-')
+	client.Writer.WriteByte('-')
 	if e != nil {
-		client.writer.WriteString("ERR " + e.Error())
+		client.Writer.WriteString("ERR " + e.Error())
 	} else {
-		client.writer.WriteString("ERR ")
+		client.Writer.WriteString("ERR ")
 	}
-	_, err := client.writer.Write(Delims)
+	_, err := client.Writer.Write(Delims)
 	return err
 }
 
 func (client *BufferClient) WriteNull() error {
-	client.writer.WriteByte('$')
-	client.writer.Write(NullBulk)
-	_, err := client.writer.Write(Delims)
+	client.Writer.WriteByte('$')
+	client.Writer.Write(NullBulk)
+	_, err := client.Writer.Write(Delims)
 	return err
 }
 
@@ -174,9 +174,9 @@ func (client *BufferClient) WriteJson(arg interface{}) error {
 		return err
 	}
 
-	client.writer.WriteByte('~')
-	client.writer.WriteString("json")
-	client.writer.Write(Delims)
+	client.Writer.WriteByte('~')
+	client.Writer.WriteString("json")
+	client.Writer.Write(Delims)
 	return client.WriteBytes(b)
 }
 
@@ -189,8 +189,7 @@ func (client *BufferClient) WriteCommand(cmd string, args []interface{}) error {
 	return client.WriteArray(argsmod)
 }
 
-// read will use a buffered reader to read off data from the connection of the client
-func (client *BufferClient) Read() (interface{}, error) {
+func (client *BufferClient) ReadInterface() (interface{}, error) {
 	// read a line off of the client as we are provided a new transmission
 	line, err := client.readLine()
 	if err != nil {
@@ -209,7 +208,7 @@ func (client *BufferClient) Read() (interface{}, error) {
 				return nil, nil
 			} else {
 				buffer := make([]byte, n)
-				_, err := io.ReadFull(client.reader, buffer)
+				_, err := io.ReadFull(client.Reader, buffer)
 				if err != nil {
 					return nil, err
 				}
@@ -232,7 +231,7 @@ func (client *BufferClient) Read() (interface{}, error) {
 
 			r := make([]interface{}, n)
 			for i := range r {
-				r[i], err = client.Read()
+				r[i], err = client.ReadInterface()
 				if err != nil {
 					return nil, err
 				}
@@ -259,7 +258,7 @@ func (client *BufferClient) Read() (interface{}, error) {
 				return nil, err
 			}
 
-			r, err := client.Read()
+			r, err := client.ReadInterface()
 			if err != nil {
 				return nil, err
 			}
@@ -321,7 +320,7 @@ func (client *BufferClient) parseError(b []byte) (error, error) {
 }
 
 func (client *BufferClient) readLine() ([]byte, error) {
-	packet, err := client.reader.ReadSlice('\n')
+	packet, err := client.Reader.ReadSlice('\n')
 	if err != nil {
 		return nil, err
 	}

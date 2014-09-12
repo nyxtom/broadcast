@@ -132,7 +132,7 @@ func (c *ClientConnection) Do(cmd string, args ...interface{}) (interface{}, err
 }
 
 func (c *ClientConnection) Read() (interface{}, error) {
-	if reply, err := c.netClient.Read(); err != nil {
+	if reply, err := c.netClient.ReadInterface(); err != nil {
 		c.finalize()
 		return nil, err
 	} else {

@@ -1,0 +1,33 @@
+package server
+
+import "strings"
+
+type BroadcastContext struct {
+	Commands    map[string]Handler  // commands is a map of all the available commands executable by the server
+	CommandHelp map[string]Command  // command help includes name, description and usage
+	Events      chan BroadcastEvent // events for the context of the broadcast server
+}
+
+// RegisterCommand takes a simple command structure and handler to assign both the help info and the handler itself
+func (ctx *BroadcastContext) RegisterCommand(cmd Command, handler Handler) {
+	ctx.Register(cmd.Name, handler)
+	ctx.CommandHelp[strings.ToUpper(cmd.Name)] = cmd
+}
+
+// Register will bind a particular byte/mark to a specific command handler (thus registering command handlers)
+func (ctx *BroadcastContext) Register(cmd string, handler Handler) {
+	ctx.Commands[strings.ToUpper(cmd)] = handler
+}
+
+// RegisterHelp will only register that the command exists in some form (without a handler which may be processed another way)
+func (ctx *BroadcastContext) RegisterHelp(cmd Command) {
+	ctx.CommandHelp[strings.ToUpper(cmd.Name)] = cmd
+}
+
+func NewBroadcastContext() *BroadcastContext {
+	ctx := new(BroadcastContext)
+	ctx.Commands = make(map[string]Handler)
+	ctx.CommandHelp = make(map[string]Command)
+	ctx.Events = make(chan BroadcastEvent)
+	return ctx
+}
