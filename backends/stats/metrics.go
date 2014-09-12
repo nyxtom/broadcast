@@ -40,7 +40,7 @@ type StatsBackend struct {
 	mem   Metrics
 }
 
-func (stats *StatsBackend) FlushInt(i int64, err error, client *server.NetworkClient) error {
+func (stats *StatsBackend) FlushInt(i int64, err error, client server.ProtocolClient) error {
 	if err != nil {
 		return err
 	}
@@ -49,7 +49,7 @@ func (stats *StatsBackend) FlushInt(i int64, err error, client *server.NetworkCl
 	return nil
 }
 
-func (stats *StatsBackend) FlushNil(client *server.NetworkClient) error {
+func (stats *StatsBackend) FlushNil(client server.ProtocolClient) error {
 	client.WriteNull()
 	client.Flush()
 	return nil
@@ -98,7 +98,7 @@ func (stats *StatsBackend) readStringInt64(d []interface{}) (string, int64, erro
 	return key, value, nil
 }
 
-func (stats *StatsBackend) Set(data interface{}, client *server.NetworkClient) error {
+func (stats *StatsBackend) Set(data interface{}, client server.ProtocolClient) error {
 	d, _ := data.([]interface{})
 	if len(d) < 2 {
 		client.WriteError(errors.New("SET takes at least 2 parameters (i.e. key to set and value to set to)"))
@@ -114,7 +114,7 @@ func (stats *StatsBackend) Set(data interface{}, client *server.NetworkClient) e
 	}
 }
 
-func (stats *StatsBackend) SetNx(data interface{}, client *server.NetworkClient) error {
+func (stats *StatsBackend) SetNx(data interface{}, client server.ProtocolClient) error {
 	d, _ := data.([]interface{})
 	if len(d) < 2 {
 		client.WriteError(errors.New("SETNX takes at least 2 parameters (i.e. key to set and value to set to, if not already set)"))
@@ -130,7 +130,7 @@ func (stats *StatsBackend) SetNx(data interface{}, client *server.NetworkClient)
 	}
 }
 
-func (stats *StatsBackend) Get(data interface{}, client *server.NetworkClient) error {
+func (stats *StatsBackend) Get(data interface{}, client server.ProtocolClient) error {
 	d, _ := data.([]interface{})
 	if len(d) == 0 {
 		client.WriteError(errors.New("GET takes at least 1 parameter (i.e. key to get)"))
@@ -149,7 +149,7 @@ func (stats *StatsBackend) Get(data interface{}, client *server.NetworkClient) e
 	}
 }
 
-func (stats *StatsBackend) Exists(data interface{}, client *server.NetworkClient) error {
+func (stats *StatsBackend) Exists(data interface{}, client server.ProtocolClient) error {
 	d, _ := data.([]interface{})
 	if len(d) == 0 {
 		client.WriteError(errors.New("EXISTS takes at least 1 parameter (i.e. key to find)"))
@@ -165,7 +165,7 @@ func (stats *StatsBackend) Exists(data interface{}, client *server.NetworkClient
 	}
 }
 
-func (stats *StatsBackend) Del(data interface{}, client *server.NetworkClient) error {
+func (stats *StatsBackend) Del(data interface{}, client server.ProtocolClient) error {
 	d, _ := data.([]interface{})
 	if len(d) == 0 {
 		client.WriteError(errors.New("DEL takes at least 1 parameter (i.e. key to delete)"))
@@ -189,7 +189,7 @@ func (stats *StatsBackend) Del(data interface{}, client *server.NetworkClient) e
 	}
 }
 
-func (stats *StatsBackend) Incr(data interface{}, client *server.NetworkClient) error {
+func (stats *StatsBackend) Incr(data interface{}, client server.ProtocolClient) error {
 	d, _ := data.([]interface{})
 	if len(d) == 0 {
 		client.WriteError(errors.New("INCR takes at least 1 parameter (i.e. key to increment)"))
@@ -215,7 +215,7 @@ func (stats *StatsBackend) Incr(data interface{}, client *server.NetworkClient) 
 	}
 }
 
-func (stats *StatsBackend) Decr(data interface{}, client *server.NetworkClient) error {
+func (stats *StatsBackend) Decr(data interface{}, client server.ProtocolClient) error {
 	d, _ := data.([]interface{})
 	if len(d) == 0 {
 		client.WriteError(errors.New("DECR takes at least 1 parameter (i.e. key to increment)"))
@@ -241,7 +241,7 @@ func (stats *StatsBackend) Decr(data interface{}, client *server.NetworkClient) 
 	}
 }
 
-func (stats *StatsBackend) Count(data interface{}, client *server.NetworkClient) error {
+func (stats *StatsBackend) Count(data interface{}, client server.ProtocolClient) error {
 	d, _ := data.([]interface{})
 	if len(d) == 0 {
 		client.WriteError(errors.New("COUNTER takes at least 1 parameter (i.e. key to increment)"))
@@ -267,7 +267,7 @@ func (stats *StatsBackend) Count(data interface{}, client *server.NetworkClient)
 	}
 }
 
-func (stats *StatsBackend) Counters(data interface{}, client *server.NetworkClient) error {
+func (stats *StatsBackend) Counters(data interface{}, client server.ProtocolClient) error {
 	results, err := stats.mem.Counters()
 	if err != nil {
 		client.WriteError(err)

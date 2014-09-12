@@ -1,7 +1,7 @@
 package server
 
 // Handler is the actual function declaration that is provided argument data, client, and server
-type Handler func(interface{}, *NetworkClient) error
+type Handler func(interface{}, ProtocolClient) error
 
 // Command describes a command handler with name, description, usage
 type Command struct {

@@ -25,10 +25,6 @@ func NewDefaultBroadcastServerProtocol() *DefaultBroadcastServerProtocol {
 
 func (p *DefaultBroadcastServerProtocol) Initialize(ctx *BroadcastContext) error {
 	p.ctx = ctx
-	p.ctx.RegisterHelp(Command{"PING", "Pings the server for a response", "", false})
-	p.ctx.RegisterHelp(Command{"ECHO", "Echos back a message sent", "ECHO \"hello world\"", false})
-	p.ctx.RegisterHelp(Command{"INFO", "Current server status and information", "", false})
-	p.ctx.RegisterHelp(Command{"CMDS", "List of available commands supported by the server", "", false})
 	return nil
 }
 
@@ -43,11 +39,6 @@ func (p *DefaultBroadcastServerProtocol) HandleConnection(conn net.Conn) (Protoc
 // or any other panic routine has occured as a result of this routine, when we receive
 // data, the client's data handler function should accomodate callback routines.
 func (p *DefaultBroadcastServerProtocol) RunClient(client ProtocolClient) {
-	c, ok := client.(*NetworkClient)
-	if !ok {
-		return
-	}
-
 	// defer panics to the loggable event routine
 	defer func() {
 		if e := recover(); e != nil {
@@ -61,8 +52,8 @@ func (p *DefaultBroadcastServerProtocol) RunClient(client ProtocolClient) {
 		return
 	}()
 
-	for !c.Closed {
-		data, err := c.ReadInterface()
+	for {
+		data, err := client.ReadInterface()
 		if err != nil {
 			if err != io.EOF {
 				p.ctx.Events <- BroadcastEvent{"error", "read error", err, nil}
@@ -70,86 +61,44 @@ func (p *DefaultBroadcastServerProtocol) RunClient(client ProtocolClient) {
 			return
 		}
 
-		err = p.handleData(data, c)
+		err = p.handleData(data, client)
 		if err != nil {
 			if err == errQuit {
-				c.WriteString(OK)
-				c.Flush()
+				client.WriteString("OK")
+				client.Flush()
 				return
 			} else {
 				p.ctx.Events <- BroadcastEvent{"error", "accept error", err, nil}
-				c.WriteError(err)
-				c.Flush()
+				client.WriteError(err)
+				client.Flush()
 			}
 		}
 	}
 }
 
-func (p *DefaultBroadcastServerProtocol) help(client *NetworkClient) error {
-	help, _ := p.ctx.Help()
-	client.WriteJson(help)
-	client.Flush()
-	return nil
-}
-
-func (p *DefaultBroadcastServerProtocol) info(client *NetworkClient) error {
-	status, _ := p.ctx.Status()
-	client.WriteJson(status)
-	client.Flush()
-	return nil
-}
-
-func (p *DefaultBroadcastServerProtocol) ping(client *NetworkClient) error {
-	client.WriteString(PONG)
-	client.Flush()
-	return nil
-}
-
-func (p *DefaultBroadcastServerProtocol) echo(data []interface{}, client *NetworkClient) error {
-	if len(data) == 0 {
-		client.WriteString("")
-		client.Flush()
-		return nil
-	} else {
-		client.WriteString(data[0].(string))
-		client.Flush()
-		return nil
-	}
-}
-
-func (p *DefaultBroadcastServerProtocol) handleData(data interface{}, client *NetworkClient) error {
+func (p *DefaultBroadcastServerProtocol) handleData(data interface{}, client ProtocolClient) error {
 	switch data := data.(type) {
 	case []interface{}:
 		{
 			cmd := ""
-			args := make([]interface{}, 0)
 			if len(data) > 0 {
 				if b, ok := data[0].([]uint8); ok {
 					cmd = strings.ToUpper(string(b))
 				} else {
 					cmd = strings.ToUpper(data[0].(string))
 				}
-				args = data[1:]
 			}
 
 			switch cmd {
-			case CMDQUIT:
+			case "QUIT":
 				return errQuit
-			case CMDINFO:
-				return p.info(client)
-			case CMDCMDS:
-				return p.help(client)
-			case CMDPING:
-				return p.ping(client)
-			case CMDECHO:
-				return p.echo(args, client)
 			default:
 				handler, ok := p.ctx.Commands[cmd]
 				if !ok {
 					return errCmdNotFound
 				}
 
-				return handler(args, client)
+				return handler(data[1:], client)
 			}
 		}
 	}

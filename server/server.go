@@ -73,6 +73,7 @@ func ListenProtocol(port int, host string, protocol BroadcastServerProtocol) (*B
 	app.Quit = make(chan struct{})
 	app.Events = app.ctx.Events
 	app.Name = "Broadcast"
+
 	app.Version = BroadcastVersion
 	app.Header = LogoHeader
 	return app, nil

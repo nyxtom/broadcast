@@ -19,18 +19,19 @@ func main() {
 	var ip = flag.String("h", "127.0.0.1", "broadcast server ip (default 127.0.0.1)")
 	var port = flag.Int("p", 7331, "broadcast server port (default 7331)")
 	var maxIdle = flag.Int("i", 1, "max idle client connections to pool from")
+	var bprotocol = flag.String("bprotocol", "", "broadcast server protocol to follow")
 
 	flag.Parse()
 
 	addr := *ip + ":" + strconv.Itoa(*port)
-	c, err := broadcast.NewClient(*port, *ip, *maxIdle)
+	c, err := broadcast.NewClient(*port, *ip, *maxIdle, *bprotocol)
 	if err != nil {
 		fmt.Printf(err.Error())
 		os.Exit(1)
 	}
 
 	// perform the initial cmds to see what is available
-	reply, err := c.Do("cmds", make([]interface{}, 0))
+	reply, err := c.Do("cmds")
 	if err != nil {
 		fmt.Printf("%s", err.Error())
 	} else {

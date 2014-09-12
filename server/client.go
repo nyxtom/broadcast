@@ -18,6 +18,36 @@ type ProtocolClient interface {
 	IsClosed() bool
 	Address() string
 	WaitExit() chan struct{}
+
+	Initialize(conn net.Conn, bufferSize int)
+	Flush() error
+
+	WriteLen(prefix byte, n int) error
+	WriteString(s string) error
+	WriteByte(b byte) error
+	WriteBytes(b []byte) error
+	WriteInt64(n int64) error
+	WriteFloat64(n float64) error
+	WriteBool(b bool) error
+	WriteError(e error) error
+	WriteNull() error
+	WriteBulk(data [][]byte) error
+	WriteInterface(arg interface{}) error
+	WriteArray(args []interface{}) error
+	WriteJson(arg interface{}) error
+	WriteCommand(cmd string, args []interface{}) error
+
+	ReadInterface() (interface{}, error)
+	ReadLine() ([]byte, error)
+	ReadPayload() ([]byte, error)
+	ReadBulkPayload() ([][]byte, error)
+
+	ParseByte(b []byte) (byte, error)
+	ParseString(b []byte) (string, error)
+	ParseInt64(b []byte) (int64, error)
+	ParseFloat64(b []byte) (float64, error)
+	ParseBool(b []byte) (bool, error)
+	ParseError(b []byte) (error, error)
 }
 
 type BufferClient struct {
@@ -70,12 +100,16 @@ func NewNetworkClient(conn net.Conn) (*NetworkClient, error) {
 
 func NewNetworkClientSize(conn net.Conn, bufferSize int) (*NetworkClient, error) {
 	client := new(NetworkClient)
+	client.Initialize(conn, bufferSize)
+	return client, nil
+}
+
+func (client *NetworkClient) Initialize(conn net.Conn, bufferSize int) {
 	client.Conn = conn
 	client.Reader = bufio.NewReaderSize(conn, bufferSize)
 	client.Writer = bufio.NewWriterSize(conn, bufferSize)
 	client.Addr = conn.RemoteAddr().String()
 	client.Quit = make(chan struct{})
-	return client, nil
 }
 
 func (client *BufferClient) Flush() error {
@@ -155,34 +189,49 @@ func (client *BufferClient) WriteNull() error {
 	return err
 }
 
+func (client *BufferClient) WriteBulk(data [][]byte) error {
+	client.WriteLen('*', len(data))
+	for _, v := range data {
+		client.WriteBytes(v)
+	}
+	return nil
+}
+
+func (client *BufferClient) WriteInterface(arg interface{}) error {
+	var err error
+	switch arg := arg.(type) {
+	case string:
+		err = client.WriteString(arg)
+	case int:
+		err = client.WriteInt64(int64(arg))
+	case int64:
+		err = client.WriteInt64(arg)
+	case float64:
+		err = client.WriteFloat64(arg)
+	case bool:
+		err = client.WriteBool(arg)
+	case byte:
+		err = client.WriteByte(arg)
+	case []byte:
+		err = client.WriteBytes(arg)
+	case nil:
+		err = client.WriteNull()
+	default:
+		var buf bytes.Buffer
+		fmt.Fprint(&buf, arg)
+		err = client.WriteBytes(buf.Bytes())
+	}
+
+	return err
+}
+
 func (client *BufferClient) WriteArray(args []interface{}) error {
 	err := client.WriteLen('*', len(args))
 	for _, arg := range args {
 		if err != nil {
 			return err
 		}
-		switch arg := arg.(type) {
-		case string:
-			err = client.WriteString(arg)
-		case int:
-			err = client.WriteInt64(int64(arg))
-		case int64:
-			err = client.WriteInt64(arg)
-		case float64:
-			err = client.WriteFloat64(arg)
-		case bool:
-			err = client.WriteBool(arg)
-		case byte:
-			err = client.WriteByte(arg)
-		case []byte:
-			err = client.WriteBytes(arg)
-		case nil:
-			err = client.WriteNull()
-		default:
-			var buf bytes.Buffer
-			fmt.Fprint(&buf, arg)
-			err = client.WriteBytes(buf.Bytes())
-		}
+		err = client.WriteInterface(arg)
 	}
 
 	return err
@@ -209,9 +258,88 @@ func (client *BufferClient) WriteCommand(cmd string, args []interface{}) error {
 	return client.WriteArray(argsmod)
 }
 
+// ReadPayload is a formatted read off of a buffer client where the
+// payload is described by the $bytelength\r\n[...bytes...]\r\n
+func (client *BufferClient) ReadPayload() ([]byte, error) {
+	line, err := client.ReadLine()
+	if err != nil {
+		return nil, err
+	} else if len(line) < 2 {
+		return nil, errReadRequest
+	}
+
+	if line[0] != '$' {
+		return nil, errReadRequest
+	}
+
+	n, err := client.ParseInt64(line[1:])
+	if err != nil {
+		return nil, err
+	} else if n == -1 {
+		return nil, nil
+	} else {
+		buffer := make([]byte, n)
+		_, err := io.ReadFull(client.Reader, buffer)
+		if err != nil {
+			return nil, err
+		}
+
+		line, err := client.ReadLine()
+		if err != nil {
+			return nil, err
+		} else if len(line) != 0 {
+			return nil, errBadBulkFormat
+		}
+
+		return buffer, nil
+	}
+
+	return nil, errReadRequest
+}
+
+// ReadBulkPayload is a format where the bulk arguments are described as a set
+// of payload arguments where each payload is read by ReadPayload and finally
+// returned as an array of byte arrays.
+func (client *BufferClient) ReadBulkPayload() ([][]byte, error) {
+	line, err := client.ReadLine()
+	if err != nil {
+		return nil, err
+	} else if len(line) < 2 {
+		return nil, errReadRequest
+	}
+
+	switch line[0] {
+	case '*':
+		{
+			n, err := client.ParseInt64(line[1:])
+			if err != nil {
+				return nil, err
+			}
+
+			r := make([][]byte, n)
+			for i := range r {
+				r[i], err = client.ReadPayload()
+				if err != nil {
+					return nil, err
+				}
+			}
+
+			return r, nil
+		}
+	}
+
+	return nil, errReadRequest
+}
+
+// ReadInterface will read the described payloads as the appropriate interpreted
+// typed-syntax for which they describe and return it as an interface{}. The protocol
+// is described through the above prefixed delimiters through the use of various
+// interface related methods (i.e. WriteString, WriteInt64...etc). ReadInterface
+// is the generic use case implemented for broadcast-clients when needing to return
+// errors, integers or payloads that aren't in the pure form of bytes for easy interpretation.
 func (client *BufferClient) ReadInterface() (interface{}, error) {
 	// read a line off of the client as we are provided a new transmission
-	line, err := client.readLine()
+	line, err := client.ReadLine()
 	if err != nil {
 		return nil, err
 	} else if len(line) < 2 {
@@ -221,7 +349,7 @@ func (client *BufferClient) ReadInterface() (interface{}, error) {
 	switch line[0] {
 	case '$':
 		{
-			n, err := client.parseInt64(line[1:])
+			n, err := client.ParseInt64(line[1:])
 			if err != nil {
 				return nil, err
 			} else if n == -1 {
@@ -233,7 +361,7 @@ func (client *BufferClient) ReadInterface() (interface{}, error) {
 					return nil, err
 				}
 
-				if line, err := client.readLine(); err != nil {
+				if line, err := client.ReadLine(); err != nil {
 					return nil, err
 				} else if len(line) != 0 {
 					return nil, errBadBulkFormat
@@ -244,7 +372,7 @@ func (client *BufferClient) ReadInterface() (interface{}, error) {
 		}
 	case '*':
 		{
-			n, err := client.parseInt64(line[1:])
+			n, err := client.ParseInt64(line[1:])
 			if err != nil {
 				return nil, err
 			}
@@ -260,20 +388,20 @@ func (client *BufferClient) ReadInterface() (interface{}, error) {
 			return r, nil
 		}
 	case '&':
-		return client.parseByte(line[1:])
+		return client.ParseByte(line[1:])
 	case '+':
-		return client.parseString(line[1:])
+		return client.ParseString(line[1:])
 	case ':':
-		return client.parseInt64(line[1:])
+		return client.ParseInt64(line[1:])
 	case '.':
-		return client.parseFloat64(line[1:])
+		return client.ParseFloat64(line[1:])
 	case '?':
-		return client.parseBool(line[1:])
+		return client.ParseBool(line[1:])
 	case '-':
-		return client.parseError(line[1:])
+		return client.ParseError(line[1:])
 	case '~':
 		{
-			structure, err := client.parseString(line[1:])
+			structure, err := client.ParseString(line[1:])
 			if err != nil {
 				return nil, err
 			}
@@ -299,39 +427,39 @@ func (client *BufferClient) ReadInterface() (interface{}, error) {
 	return nil, errReadRequest
 }
 
-func (client *BufferClient) parseByte(b []byte) (byte, error) {
+func (client *BufferClient) ParseByte(b []byte) (byte, error) {
 	if len(b) == 0 {
 		return 0, errors.New("malformed byte")
 	}
 	return b[0], nil
 }
 
-func (client *BufferClient) parseString(b []byte) (string, error) {
+func (client *BufferClient) ParseString(b []byte) (string, error) {
 	return string(b), nil
 }
 
-func (client *BufferClient) parseInt64(b []byte) (int64, error) {
+func (client *BufferClient) ParseInt64(b []byte) (int64, error) {
 	if len(b) == 0 {
 		return 0, nil
 	}
 	return strconv.ParseInt(string(b), 10, 64)
 }
 
-func (client *BufferClient) parseFloat64(b []byte) (float64, error) {
+func (client *BufferClient) ParseFloat64(b []byte) (float64, error) {
 	if len(b) == 0 {
 		return 0, nil
 	}
 	return strconv.ParseFloat(string(b), 64)
 }
 
-func (client *BufferClient) parseBool(b []byte) (bool, error) {
+func (client *BufferClient) ParseBool(b []byte) (bool, error) {
 	if len(b) == 0 {
 		return false, nil
 	}
 	return b[0] == '1', nil
 }
 
-func (client *BufferClient) parseError(b []byte) (error, error) {
+func (client *BufferClient) ParseError(b []byte) (error, error) {
 	if len(b) == 0 {
 		return nil, errors.New("malformed error")
 	}
@@ -339,7 +467,7 @@ func (client *BufferClient) parseError(b []byte) (error, error) {
 	return errors.New(string(b)), nil
 }
 
-func (client *BufferClient) readLine() ([]byte, error) {
+func (client *BufferClient) ReadLine() ([]byte, error) {
 	packet, err := client.Reader.ReadSlice('\n')
 	if err != nil {
 		return nil, err

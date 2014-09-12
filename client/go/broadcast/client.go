@@ -7,6 +7,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/nyxtom/broadcast/protocols/redis"
 	"github.com/nyxtom/broadcast/server"
 )
 
@@ -15,6 +16,7 @@ type Client struct {
 	sync.Mutex
 
 	protocol    string
+	bprotocol   string
 	port        int
 	host        string
 	addr        string
@@ -22,9 +24,10 @@ type Client struct {
 	connections *list.List
 }
 
-func NewClient(port int, host string, maxIdle int) (*Client, error) {
+func NewClient(port int, host string, maxIdle int, bprotocol string) (*Client, error) {
 	client := new(Client)
 	client.protocol = "tcp"
+	client.bprotocol = bprotocol
 	client.port = port
 	client.host = host
 	client.addr = host + ":" + strconv.Itoa(port)
@@ -72,6 +75,7 @@ func (client *Client) get() *ClientConnection {
 		c := new(ClientConnection)
 		c.addr = client.addr
 		c.protocol = client.protocol
+		c.bprotocol = client.bprotocol
 		return c
 	} else {
 		e := client.connections.Front()
@@ -96,8 +100,9 @@ type ClientConnection struct {
 	sync.Mutex
 
 	protocol   string
+	bprotocol  string
 	addr       string
-	netClient  *server.NetworkClient
+	netClient  server.ProtocolClient
 	lastActive time.Time
 }
 
@@ -150,12 +155,21 @@ func (c *ClientConnection) connect() error {
 		return err
 	}
 
-	c.netClient, err = server.NewNetworkClient(conn)
+	c.netClient, err = c.newClient(conn)
 	if err != nil {
 		return err
 	}
 
 	return nil
+}
+
+func (c *ClientConnection) newClient(conn net.Conn) (server.ProtocolClient, error) {
+	switch c.bprotocol {
+	case "redis":
+		return redisProtocol.NewRedisProtocolClient(conn)
+	default:
+		return server.NewNetworkClient(conn)
+	}
 }
 
 func (c *ClientConnection) finalize() {

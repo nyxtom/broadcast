@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/BurntSushi/toml"
+	"github.com/nyxtom/broadcast/backends/bdefault"
 	"github.com/nyxtom/broadcast/backends/stats"
 	"github.com/nyxtom/broadcast/server"
 )
@@ -80,6 +81,14 @@ func main() {
 
 	// setup stats backend
 	backend, err := stats.RegisterBackend(app)
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+	app.LoadBackend(backend)
+
+	// setup default backend
+	backend, err = bdefault.RegisterBackend(app)
 	if err != nil {
 		fmt.Println(err)
 		return

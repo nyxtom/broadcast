@@ -1,12 +1,12 @@
-package protocols
+package redisProtocol
 
 import (
-	"bytes"
 	"errors"
 	"fmt"
 	"io"
 	"net"
 	"runtime"
+	"strings"
 
 	"github.com/nyxtom/broadcast/server"
 )
@@ -24,21 +24,14 @@ func NewRedisProtocol() *RedisProtocol {
 
 func (p *RedisProtocol) Initialize(ctx *server.BroadcastContext) error {
 	p.ctx = ctx
-	p.ctx.RegisterHelp(server.Command{"INFO", "Current server status and information", "", false})
-	p.ctx.RegisterHelp(server.Command{"CMDS", "List of available commands supported by the server", "", false})
 	return nil
 }
 
 func (p *RedisProtocol) HandleConnection(conn net.Conn) (server.ProtocolClient, error) {
-	return NewRedisProtocolClient(conn), nil
+	return NewRedisProtocolClientSize(conn, 128)
 }
 
 func (p *RedisProtocol) RunClient(client server.ProtocolClient) {
-	c, ok := client.(*RedisProtocolClient)
-	if !ok {
-		return
-	}
-
 	// defer panics to the loggable event routine
 	defer func() {
 		if e := recover(); e != nil {
@@ -48,12 +41,12 @@ func (p *RedisProtocol) RunClient(client server.ProtocolClient) {
 			p.ctx.Events <- server.BroadcastEvent{"fatal", "client run panic", errors.New(fmt.Sprintf("%v", e)), buf}
 		}
 
-		c.Close()
+		client.Close()
 		return
 	}()
 
-	for !c.Closed {
-		data, err := c.readBulk()
+	for {
+		data, err := client.ReadBulkPayload()
 		if err != nil {
 			if err != io.EOF {
 				p.ctx.Events <- server.BroadcastEvent{"error", "read error", err, nil}
@@ -61,44 +54,32 @@ func (p *RedisProtocol) RunClient(client server.ProtocolClient) {
 			return
 		}
 
-		err = p.handleData(data, c)
+		err = p.handleData(data, client)
 		if err != nil {
 			if err == errQuit {
-				c.WriteString("OK")
-				c.Flush()
+				client.WriteString("OK")
+				client.Flush()
 				return
 			} else {
 				p.ctx.Events <- server.BroadcastEvent{"error", "accept error", err, nil}
-				c.WriteError(err)
-				c.Flush()
+				client.WriteError(err)
+				client.Flush()
 			}
 		}
 	}
 }
 
-func (p *RedisProtocol) help(client *RedisProtocolClient) error {
-	help, _ := p.ctx.Help()
-	client.WriteJson(help)
-	client.Flush()
-	return nil
-}
-
-func (p *RedisProtocol) info(client *RedisProtocolClient) error {
-	status, _ := p.ctx.Status()
-	client.WriteJson(status)
-	client.Flush()
-	return nil
-}
-
-func (p *RedisProtocol) handleData(data [][]byte, client *RedisProtocolClient) error {
+func (p *RedisProtocol) handleData(data [][]byte, client server.ProtocolClient) error {
+	cmd := strings.ToUpper(string(data[0]))
 	switch {
-	case bytes.Equal(data[0], []byte("QUIT")):
+	case cmd == "QUIT":
 		return errQuit
-	case bytes.Equal(data[0], []byte("CMDS")):
-		return p.help(client)
-	case bytes.Equal(data[0], []byte("INFO")):
-		return p.info(client)
 	default:
-		return errCmdNotFound
+		handler, ok := p.ctx.Commands[cmd]
+		if !ok {
+			return errCmdNotFound
+		}
+
+		return handler(data[1:], client)
 	}
 }

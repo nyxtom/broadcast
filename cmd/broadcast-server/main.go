@@ -13,14 +13,22 @@ import (
 	"time"
 
 	"github.com/BurntSushi/toml"
+	"github.com/nyxtom/broadcast/backends/bdefault"
+	"github.com/nyxtom/broadcast/backends/stats"
 	"github.com/nyxtom/broadcast/protocols/redis"
 	"github.com/nyxtom/broadcast/server"
 )
 
 type Configuration struct {
-	port      int    // port of the server
-	host      string // host of the server
-	bprotocol string // broadcast protocol configuration
+	port             int           // port of the server
+	host             string        // host of the server
+	bprotocol        string        // broadcast protocol configuration
+	backends_default BackendConfig // bdefault backend configuration
+	backends_stats   BackendConfig // stats backend configuration
+}
+
+type BackendConfig struct {
+	enabled bool // enabled setting for backend config
 }
 
 func main() {
@@ -31,12 +39,14 @@ func main() {
 	var host = flag.String("h", "127.0.0.1", "Broadcast server host to bind to")
 	var port = flag.Int("p", 7331, "Broadcast server port to bind to")
 	var bprotocol = flag.String("bprotocol", "", "Broadcast protocol configuration")
+	var backends_default = flag.Bool("backends_default", true, "Broadcast default backend enabled")
+	var backends_stats = flag.Bool("backends_stats", false, "Broadcast stats backend enabled setting")
 	var configFile = flag.String("config", "", "Broadcast server configuration file (/etc/broadcast.conf)")
 	var cpuProfile = flag.String("cpuprofile", "", "write cpu profile to file")
 
 	flag.Parse()
 
-	cfg := &Configuration{*port, *host, *bprotocol}
+	cfg := &Configuration{*port, *host, *bprotocol, BackendConfig{*backends_default}, BackendConfig{*backends_stats}}
 	if len(*configFile) == 0 {
 		fmt.Printf("[%d] %s # WARNING: no config file specified, using the default config\n", os.Getpid(), time.Now().Format(time.RFC822))
 	} else {
@@ -57,7 +67,7 @@ func main() {
 	if cfg.bprotocol == "" {
 		serverProtocol = server.NewDefaultBroadcastServerProtocol()
 	} else if cfg.bprotocol == "redis" {
-		serverProtocol = protocols.NewRedisProtocol()
+		serverProtocol = redisProtocol.NewRedisProtocol()
 	} else {
 		fmt.Println(errors.New("Invalid protocol " + cfg.bprotocol + " specified"))
 		return
@@ -77,6 +87,26 @@ func main() {
 	if err != nil {
 		fmt.Println(err)
 		return
+	}
+
+	// load the default backend should it be enabled
+	if cfg.backends_default.enabled {
+		backend, err := bdefault.RegisterBackend(app)
+		if err != nil {
+			fmt.Println(err)
+			return
+		}
+		app.LoadBackend(backend)
+	}
+
+	// load the stats backend should it be enabled
+	if cfg.backends_stats.enabled {
+		backend, err := stats.RegisterBackend(app)
+		if err != nil {
+			fmt.Println(err)
+			return
+		}
+		app.LoadBackend(backend)
 	}
 
 	// wait for all events to fire so we can log them

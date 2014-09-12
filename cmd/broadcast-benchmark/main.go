@@ -146,7 +146,7 @@ func main() {
 	}
 
 	loop = *number / *clients
-	client, _ = broadcast.NewClient(*port, *ip, 1)
+	client, _ = broadcast.NewClient(*port, *ip, 1, "redis")
 	benchSet()
 	benchPing()
 	benchGet()
