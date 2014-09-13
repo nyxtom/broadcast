@@ -20,11 +20,11 @@ import (
 )
 
 type Configuration struct {
-	port             int           // port of the server
-	host             string        // host of the server
-	bprotocol        string        // broadcast protocol configuration
-	backends_default BackendConfig // bdefault backend configuration
-	backends_stats   BackendConfig // stats backend configuration
+	port            int           // port of the server
+	host            string        // host of the server
+	bprotocol       string        // broadcast protocol configuration
+	backend_default BackendConfig // bdefault backend configuration
+	backend_stats   BackendConfig // stats backend configuration
 }
 
 type BackendConfig struct {
@@ -39,14 +39,14 @@ func main() {
 	var host = flag.String("h", "127.0.0.1", "Broadcast server host to bind to")
 	var port = flag.Int("p", 7331, "Broadcast server port to bind to")
 	var bprotocol = flag.String("bprotocol", "redis", "Broadcast protocol configuration")
-	var backends_default = flag.Bool("backends_default", true, "Broadcast default backend enabled")
-	var backends_stats = flag.Bool("backends_stats", false, "Broadcast stats backend enabled setting")
+	var backend_default = flag.Bool("backend_default", true, "Broadcast default backend enabled")
+	var backend_stats = flag.Bool("backend_stats", false, "Broadcast stats backend enabled setting")
 	var configFile = flag.String("config", "", "Broadcast server configuration file (/etc/broadcast.conf)")
 	var cpuProfile = flag.String("cpuprofile", "", "write cpu profile to file")
 
 	flag.Parse()
 
-	cfg := &Configuration{*port, *host, *bprotocol, BackendConfig{*backends_default}, BackendConfig{*backends_stats}}
+	cfg := &Configuration{*port, *host, *bprotocol, BackendConfig{*backend_default}, BackendConfig{*backend_stats}}
 	if len(*configFile) == 0 {
 		fmt.Printf("[%d] %s # WARNING: no config file specified, using the default config\n", os.Getpid(), time.Now().Format(time.RFC822))
 	} else {
@@ -90,7 +90,7 @@ func main() {
 	}
 
 	// load the default backend should it be enabled
-	if cfg.backends_default.enabled {
+	if cfg.backend_default.enabled {
 		backend, err := bdefault.RegisterBackend(app)
 		if err != nil {
 			fmt.Println(err)
@@ -100,7 +100,7 @@ func main() {
 	}
 
 	// load the stats backend should it be enabled
-	if cfg.backends_stats.enabled {
+	if cfg.backend_stats.enabled {
 		backend, err := stats.RegisterBackend(app)
 		if err != nil {
 			fmt.Println(err)
