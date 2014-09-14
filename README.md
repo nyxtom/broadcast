@@ -12,6 +12,7 @@ while being able to work directly with typed data.
 ## Features
 
 + broadcast-server can listen on tcp
++ pluggable protocols (redis protocol implemented)
 + supports reading and writing: int64, float64, string, byte, []byte,
   error, and bool.
 + registered command callbacks will receive typed data as it was parsed
@@ -73,33 +74,16 @@ func RegisterBackend(app *server.BroadcastServer) (server.Backend, error) {
 
 	backend.mem = mem
 
-	commandHelp := []server.Command{
-		server.Command{"COUNT", "Increments a key that resets itself to 0 on each flush routine.", "COUNT foo [124]", true},
-		server.Command{"COUNTERS", "Returns the list of active counters.", "", false},
-		server.Command{"INCR", "Increments a key by the specified value or by default 1.", "INCR key [1]", true},
-		server.Command{"DECR", "Decrements a key by the specified value or by default 1.", "DECR key [1]", true},
-		server.Command{"DEL", "Deletes a key from the values or counters list or both.", "DEL key", true},
-		server.Command{"EXISTS", "Determines if the given key exists from the values.", "EXISTS key", false},
-		server.Command{"GET", "Gets the specified key from the values.", "GET key", false},
-		server.Command{"SET", "Sets the specified key to the specified value in values.", "SET key 1234", true},
-		server.Command{"SETNX", "Sets the specified key to the given value only if the key is not already set.", "SETNX key 1234", true},
-	}
-	commands := []server.Handler{
-		backend.Count,
-		backend.Counters,
-		backend.Incr,
-		backend.Decr,
-		backend.Del,
-		backend.Exists,
-		backend.Get,
-		backend.Set,
-		backend.SetNx,
-	}
-
-	for i, _ := range commandHelp {
-		app.RegisterCommand(commandHelp[i], commands[i])
-	}
-
+	app.RegisterCommand(server.Command{"COUNT", "Increments a key that resets itself to 0 on each flush routine.", "COUNT foo [124]", true}, backend.Count)
+	app.RegisterCommand(server.Command{"COUNTERS", "Returns the list of active counters.", "", false}, backend.Counters)
+	app.RegisterCommand(server.Command{"INCR", "Increments a key by the specified value or by default 1.", "INCR key [1]", false}, backend.Incr)
+	app.RegisterCommand(server.Command{"DECR", "Decrements a key by the specified value or by default 1.", "DECR key [1]", false}, backend.Decr)
+	app.RegisterCommand(server.Command{"DEL", "Deletes a key from the values or counters list or both.", "DEL key", false}, backend.Del)
+	app.RegisterCommand(server.Command{"EXISTS", "Determines if the given key exists from the values.", "EXISTS key", false}, backend.Exists)
+	app.RegisterCommand(server.Command{"GET", "Gets the specified key from the values.", "GET key", false}, backend.Get)
+	app.RegisterCommand(server.Command{"SET", "Sets the specified key to the specified value in values.", "SET key 1234", false}, backend.Set)
+	app.RegisterCommand(server.Command{"SETNX", "Sets the specified key to the given value only if the key is not already set.", "SETNX key 1234", false}, backend.SetNx)
+	app.RegisterCommand(server.Command{"KEYS", "Returns the list of keys available or by pattern", "KEYS [pattern]", false}, backend.Keys)
 	return backend, nil
 }
 ```
@@ -119,9 +103,18 @@ $ broadcast-cli -h="127.0.0.1" -p=7331
 (integer) 234
 
 127.0.0.1:7331> SET foo 3
+(integer) 1
 
 127.0.0.1:7331> GET foo
 (integer) 3
+
+127.0.0.1:7331> COUNT test
+
+127.0.0.1:7331> COUNTERS
+test: Rate: AvgHistory:
+  1)	(float) 0.000000
+RatePerSecond: (float) 0.199962
+Value: (float) 0.000000
 
 127.0.0.1:7331> 
 ```
@@ -132,7 +125,7 @@ be a single value depending on the use case), followed by a network client
 that can be used to write back to the client response stream.
 
 ```
-func (stats *StatsBackend) FlushInt(i int, err error, client *server.NetworkClient) error {
+func (stats *StatsBackend) FlushInt(i int, err error, client server.ProtocolClient) error {
 	if err != nil {
 		return err
 	}
@@ -141,15 +134,14 @@ func (stats *StatsBackend) FlushInt(i int, err error, client *server.NetworkClie
 	return nil
 }
 
-func (stats *StatsBackend) Exists(data interface{}, client *server.NetworkClient) error {
-    d, _ := data.([]interface{})
+func (stats *StatsBackend) Exists(data interface{}, client server.ProtocolClient) error {
+    d, _ := data.([][]byte)
     if len(d) == 0 {
         client.WriteError(errors.New("EXISTS takes at least 1 parameter (i.e. key to find)"))
         client.Flush()
         return nil
     } else {
-        key := fmt.Sprintf("%v", d[0])
-        i, err := stats.mem.Exists(key)
+        i, err := stats.mem.Exists(string(d[0]))
         return stats.FlushInt(i, err, client)
     }
 }
@@ -171,7 +163,7 @@ package server
 
 var pong = "PONG"
 
-func CmdPing(data interface{}, client *NetworkClient) error {
+func (b *DefaultBackend) ping(data interface{}, client server.ProtocolClient) error {
 	client.WriteString(pong)
 	client.Flush()
 	return nil
@@ -181,25 +173,29 @@ func CmdPing(data interface{}, client *NetworkClient) error {
 And the broadcast-server will register this command on start-up like so:
 
 ```
-app.RegisterCommand(server.Command{"PING", "Pings the server for a response", "", false}, server.CmdPing)
+app.RegisterCommand(server.Command{"PING", "Pings the server for a response", "", false}, backend.ping)
 ```
 
 ### ECHO
 
 Echo is another simple command that is automaticall registered on
-start-up by the broadcast-server. 
+start-up by the broadcast-server via the default backend.
 
 ```
 package server
 
-func CmdEcho(data interface{}, client *NetworkClient) error {
+func (b *DefaultBackend) echo(data interface{}, client server.ProtocolClient) error {
 	d, _ := data.([]interface{})
 	if len(d) == 0 {
 		client.WriteString("")
 		client.Flush()
 		return nil
 	} else {
-		client.WriteString(d[0].(string))
+		if len(d) == 1 {
+			client.WriteInterface(d[0])
+		} else {
+			client.WriteArray(d)
+		}
 		client.Flush()
 		return nil
 	}
@@ -211,14 +207,15 @@ func CmdEcho(data interface{}, client *NetworkClient) error {
 Sum is a command that will add up all the given parameters that 
 were passed into it by the client. Note how we can add both 
 floats and integers by inspecting the type. This is a simple command 
-that can be registered by the broadcast-server.
+that can be registered by the broadcast-server using the interface
+protocol.
 
 ```
-package server
+package main
 
 import "errors"
 
-func CmdSum(data interface{}, client *NetworkClient) error {
+func (b *CustomBackend) sum(data interface{}, client server.ProtocolClient) error {
 	d, _ := data.([]interface{})
 	if len(d) < 1 {
 		client.WriteError(errors.New("ADD takes at least 2 parameters"))
@@ -243,6 +240,115 @@ func CmdSum(data interface{}, client *NetworkClient) error {
 		client.Flush()
 		return nil
 	}
+}
+
+func RegisterBackend(app *server.BroadcastServer) (server.Backend, error) {
+	backend := new(CustomBackend)
+	app.RegisterCommand(server.Command{"SUM", "Adds a set of numbers together", "SUM num num [num num ...]", false}, backend.sum)
+	return backend, nil
+}
+
+func (b *CustomBackend) Load() error {
+	return nil
+}
+
+func (b *CustomBackend) Unload() error {
+	return nil
+}
+```
+
+Then in the actual app-server itself, you can call the load backend to
+ensure that our newly created custom backend is loaded.
+
+```
+package main
+
+import (
+	"flag"
+	"fmt"
+	"io/ioutil"
+	"os"
+	"os/signal"
+	"runtime"
+	"runtime/pprof"
+	"syscall"
+	"time"
+
+	"github.com/nyxtom/broadcast/server"
+	"github.com/nyxtom/broadcast/protocols/redis"
+)
+
+var LogoHeader = `
+	%s %s %s
+	Port: %d
+	PID: %d
+`
+
+func main() {
+	// Parse out flag parameters
+	var host = flag.String("h", "127.0.0.1", "Broadcast custom host to bind to")
+	var port = flag.Int("p", 7331, "Broadcast custom port to bind to")
+
+	// create a new broadcast server
+	app, err := server.ListenProtocol(*port, *host, redisProtocol.NewRedisProtocol())
+	app.Header = ""
+	app.Name = "Broadcast Custom"
+	app.Version = "0.1"
+	app.Header = LogoHeader
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+
+	// setup custom backend as created above
+	backend, err := RegisterBackend(app)
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+	app.LoadBackend(backend)
+
+	// wait for all events to fire so we can log them
+	pid := os.Getpid()
+	go func() {
+		for !app.Closed {
+			event := <-app.Events
+			t := time.Now()
+			delim := "#"
+			if event.Level == "error" {
+				delim = "ERROR:"
+			}
+			msg := fmt.Sprintf("[%d] %s %s %s", pid, t.Format(time.RFC822), delim, event.Message)
+			if event.Err != nil {
+				msg += fmt.Sprintf(" %v", event.Err)
+			}
+
+			fmt.Println(msg)
+		}
+	}()
+
+	go func() {
+		<-app.Quit
+		pprof.StopCPUProfile()
+		os.Exit(0)
+	}()
+
+	// attach to any signals that would cause our app to close
+	sc := make(chan os.Signal, 1)
+	signal.Notify(sc,
+		syscall.SIGHUP,
+		syscall.SIGINT,
+		syscall.SIGTERM,
+		syscall.SIGQUIT,
+		os.Interrupt)
+
+	go func() {
+		<-sc
+		app.Close()
+	}()
+
+	// accept incomming connections!
+	app.AcceptConnections()
 }
 ```
 
@@ -345,6 +451,9 @@ INCR
 INFO
  Current server status and information
 
+KEYS
+ Returns the list of keys available or by pattern
+ usage: KEYS [pattern]
 
 127.0.0.1:7331>
 ```
