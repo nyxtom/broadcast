@@ -354,6 +354,36 @@ func main() {
 }
 ```
 
+### BGraph Protocol
+
+broadcast-server also implements a much simpler protocol which is in the
+format of *CMD arg1 arg2...\r\n*. If you startup the broadcast server with
+the following command line:
+
+```
+$ broadcast-server -bprotocol="bgraph"
+[71443] 14 Sep 14 12:36 MDT # WARNING: no config file specified, using the default config
+[71443] 14 Sep 14 12:36 MDT #
+
+  _                             Broadcast 0.1.0 64 bit
+   /_)__  _   _/_  _   __/_
+   /_)//_//_|/_//_ /_|_\ /      Port: 7331
+                                PID: 71443
+
+
+[71443] 14 Sep 14 12:36 MDT # listening for incoming connections on 127.0.0.1:7331
+```
+
+Then you can access it via echo and netcat commands make this process much simpler.
+
+```
+$ echo -e "SET foo 9\r\n" | nc 127.0.0.1 7331
+:1
+
+$ echo -e "GET foo\r\n" | nc 127.0.0.1 7331
+:9
+```
+
 ### Broadcast-Cli
 
 broadcast-cli is the command line tool we can use to connect to any
@@ -461,3 +491,5 @@ KEYS
 
 127.0.0.1:7331>
 ```
+
+

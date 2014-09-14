@@ -25,6 +25,7 @@ func NewBGraphProtocolClientSize(conn *net.TCPConn, bufferSize int) (*BGraphProt
 
 func (proto *BGraphProtocolClient) readBulk() ([][]byte, error) {
 	line, err := proto.ReadLine()
+	fmt.Println(string(line))
 	if err != nil {
 		return nil, err
 	} else if len(line) < 2 {
