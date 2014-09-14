@@ -359,10 +359,12 @@ func main() {
 broadcast-cli is the command line tool we can use to connect to any
 broadcast-server. Primarily the cli is meant to issue commands and serves
 as an example of how to write a broadcast client in golang. The client
-library being used to implement the cli is located in *client/go/broadcast*.
+library being used to implement the cli is located in *client/go/broadcast*. 
+broadcast-cli can be used to set the protocol based on the currently
+implemented protocol clients via the *-bprotocol" command line flag.
 
 ```
-$ broadcast-cli -h="127.0.0.1" -p=7331
+$ broadcast-cli -h="127.0.0.1" -p=7331 -bprotocol="redis"
 127.0.0.1:7331> CMDS
 CMDS
  List of available commands supported by the server
@@ -403,7 +405,7 @@ $ broadcast-stats
 ```
 
 ```
-$ broadcast-cli -h="127.0.0.1" -p=7331
+$ broadcast-cli -h="127.0.0.1" -p=7331 -bprotocol="redis"
 127.0.0.1:7331> CMDS
 SETNX
  Sets the specified key to the given value only if the key is not already set.
