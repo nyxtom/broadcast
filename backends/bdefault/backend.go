@@ -2,6 +2,7 @@ package bdefault
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/nyxtom/broadcast/server"
 )
@@ -61,9 +62,11 @@ func (b *DefaultBackend) echo(data interface{}, client server.ProtocolClient) er
 			if len(b) == 1 {
 				client.WriteString(string(b[0]))
 			} else {
-				for _, v := range b {
-					client.WriteString(string(v))
+				s := make([]string, len(b))
+				for i, k := range b {
+					s[i] = string(k)
 				}
+				client.WriteString(strings.Join(s, " "))
 			}
 			client.Flush()
 			return nil
