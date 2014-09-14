@@ -2,6 +2,7 @@ package stats
 
 import (
 	"errors"
+	"strings"
 	"sync"
 	"time"
 )
@@ -165,5 +166,60 @@ func (mem *MemoryBackend) SetNx(name string, value int64) (int64, error) {
 		return 1, nil
 	} else {
 		return -1, nil
+	}
+}
+
+func (mem *MemoryBackend) Keys(pattern string) ([]string, error) {
+	mem.Lock()
+	defer mem.Unlock()
+
+	results := make([]string, 0)
+	if pattern == "" || pattern == "*" {
+		for k, _ := range mem.values {
+			results = append(results, k)
+		}
+		return results, nil
+	} else {
+		patterns := strings.Split(pattern, "*")
+		if len(patterns) == 1 {
+			for k, _ := range mem.values {
+				if k == pattern {
+					results = append(results, k)
+				}
+			}
+		} else {
+			for k, _ := range mem.values {
+				found := true
+				iter := 0
+				s := k
+				for iter < len(patterns) {
+					if strings.HasPrefix(s, patterns[iter]) {
+						s = strings.TrimLeft(k, patterns[iter])
+						iter++
+						if iter < len(patterns) {
+							index := strings.Index(k, patterns[iter])
+							iter++
+							if index >= 0 {
+								s = k[index:]
+							} else {
+								found = false
+								break
+							}
+						} else {
+							break
+						}
+					} else {
+						found = false
+						break
+					}
+				}
+
+				if found {
+					results = append(results, k)
+				}
+			}
+		}
+
+		return results, nil
 	}
 }

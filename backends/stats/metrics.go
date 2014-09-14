@@ -29,6 +29,8 @@ type Metrics interface {
 
 	Set(name string, value int64) (int64, error)
 	SetNx(name string, value int64) (int64, error)
+
+	Keys(pattern string) ([]string, error)
 }
 
 type StatsBackend struct {
@@ -257,6 +259,31 @@ func (stats *StatsBackend) Counters(data interface{}, client server.ProtocolClie
 	return nil
 }
 
+func (stats *StatsBackend) Keys(data interface{}, client server.ProtocolClient) error {
+	d, _ := data.([][]byte)
+	key := ""
+	if len(d) > 0 {
+		pattern, err := stats.readString(d[0])
+		if err != nil {
+			return err
+		}
+		key = pattern
+	}
+
+	results, err := stats.mem.Keys(key)
+	if err != nil {
+		client.WriteError(err)
+		client.Flush()
+		return nil
+	}
+	client.WriteLen('*', len(results))
+	for _, k := range results {
+		client.WriteString(k)
+	}
+	client.Flush()
+	return nil
+}
+
 func RegisterBackend(app *server.BroadcastServer) (server.Backend, error) {
 	backend := new(StatsBackend)
 	mem, err := NewMemoryBackend()
@@ -275,6 +302,7 @@ func RegisterBackend(app *server.BroadcastServer) (server.Backend, error) {
 	app.RegisterCommand(server.Command{"GET", "Gets the specified key from the values.", "GET key", false}, backend.Get)
 	app.RegisterCommand(server.Command{"SET", "Sets the specified key to the specified value in values.", "SET key 1234", false}, backend.Set)
 	app.RegisterCommand(server.Command{"SETNX", "Sets the specified key to the given value only if the key is not already set.", "SETNX key 1234", false}, backend.SetNx)
+	app.RegisterCommand(server.Command{"KEYS", "Returns the list of keys available or by pattern", "KEYS [pattern]", false}, backend.Keys)
 	return backend, nil
 }
 
