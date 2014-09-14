@@ -27,6 +27,10 @@ func (p *RedisProtocol) Initialize(ctx *server.BroadcastContext) error {
 	return nil
 }
 
+func (p *RedisProtocol) Name() string {
+	return "redis"
+}
+
 func (p *RedisProtocol) HandleConnection(conn *net.TCPConn) (server.ProtocolClient, error) {
 	return NewRedisProtocolClientSize(conn, 128)
 }

@@ -24,6 +24,10 @@ func (p *LineProtocol) Initialize(ctx *server.BroadcastContext) error {
 	return nil
 }
 
+func (p *LineProtocol) Name() string {
+	return "line"
+}
+
 func (p *LineProtocol) HandleConnection(conn *net.TCPConn) (server.ProtocolClient, error) {
 	return NewLineProtocolClientSize(conn, 128)
 }

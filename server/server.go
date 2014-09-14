@@ -143,6 +143,7 @@ func (app *BroadcastServer) Close() {
 // in an async manner. This will setup routines for both reading and writing to a connected client
 func (app *BroadcastServer) AcceptConnections() {
 	app.Events <- BroadcastEvent{"info", fmt.Sprintf(app.Header, app.Name, app.Version, app.bit, app.port, app.pid), nil, nil}
+	app.Events <- BroadcastEvent{"info", "setting read/write protocol to " + app.protocol.Name(), nil, nil}
 	app.Events <- BroadcastEvent{"info", "listening for incoming connections on " + app.Address(), nil, nil}
 
 	err := app.protocol.Initialize(app.ctx)

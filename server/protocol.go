@@ -13,6 +13,7 @@ type BroadcastServerProtocol interface {
 	HandleConnection(conn *net.TCPConn) (ProtocolClient, error)
 	RunClient(client ProtocolClient)
 	Initialize(ctx *BroadcastContext) error
+	Name() string
 }
 
 type DefaultBroadcastServerProtocol struct {
@@ -21,6 +22,10 @@ type DefaultBroadcastServerProtocol struct {
 
 func NewDefaultBroadcastServerProtocol() *DefaultBroadcastServerProtocol {
 	return new(DefaultBroadcastServerProtocol)
+}
+
+func (p *DefaultBroadcastServerProtocol) Name() string {
+	return "interface"
 }
 
 func (p *DefaultBroadcastServerProtocol) Initialize(ctx *BroadcastContext) error {

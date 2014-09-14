@@ -354,10 +354,10 @@ func main() {
 }
 ```
 
-### Line Graph Protocol
+### Line Protocol
 
 broadcast-server also implements a much simpler protocol which is in the
-format of *CMD arg1 arg2...\r\n*. If you startup the broadcast server with
+format of *CMD arg1 arg2...\n*. If you startup the broadcast server with
 the following command line:
 
 ```
@@ -371,6 +371,7 @@ $ broadcast-server -h="127.0.0.1" -p=7331 -bprotocol="line"
                                 PID: 71443
 
 
+[71443] 14 Sep 14 12:36 MDT # setting read/write protocol to line
 [71443] 14 Sep 14 12:36 MDT # listening for incoming connections on 127.0.0.1:7331
 ```
 
@@ -431,6 +432,7 @@ $ broadcast-stats
                                                PID: 45206
 
 
+[45206] 27 Aug 14 13:27 MDT # setting read/write protocol to redis
 [45206] 27 Aug 14 13:27 MDT # broadcast server started listening on 127.0.0.1:7331
 ```
 
