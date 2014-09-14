@@ -1,4 +1,4 @@
-package bgraphProtocol
+package lineProtocol
 
 import "errors"
 

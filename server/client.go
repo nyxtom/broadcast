@@ -39,6 +39,7 @@ type ProtocolClient interface {
 
 	ReadInterface() (interface{}, error)
 	ReadLine() ([]byte, error)
+	ReadLineInvariant() ([]byte, error)
 	ReadPayload() ([]byte, error)
 	ReadBulkPayload() ([][]byte, error)
 
@@ -479,4 +480,22 @@ func (client *BufferClient) ReadLine() ([]byte, error) {
 	}
 
 	return packet[:i], nil
+}
+
+func (client *BufferClient) ReadLineInvariant() ([]byte, error) {
+	packet, err := client.Reader.ReadSlice('\n')
+	if err != nil {
+		return nil, err
+	}
+
+	i := len(packet) - 2
+	if i < 0 {
+		return nil, errLineFormat
+	}
+
+	if packet[i] == '\r' || packet[i] == ' ' {
+		return packet[:i], nil
+	} else {
+		return packet[:i+1], nil
+	}
 }

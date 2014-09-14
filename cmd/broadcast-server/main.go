@@ -15,7 +15,7 @@ import (
 	"github.com/BurntSushi/toml"
 	"github.com/nyxtom/broadcast/backends/bdefault"
 	"github.com/nyxtom/broadcast/backends/stats"
-	"github.com/nyxtom/broadcast/protocols/bgraph"
+	"github.com/nyxtom/broadcast/protocols/line"
 	"github.com/nyxtom/broadcast/protocols/redis"
 	"github.com/nyxtom/broadcast/server"
 )
@@ -69,8 +69,8 @@ func main() {
 		serverProtocol = server.NewDefaultBroadcastServerProtocol()
 	} else if cfg.bprotocol == "redis" {
 		serverProtocol = redisProtocol.NewRedisProtocol()
-	} else if cfg.bprotocol == "bgraph" {
-		serverProtocol = bgraphProtocol.NewBGraphProtocol()
+	} else if cfg.bprotocol == "line" {
+		serverProtocol = lineProtocol.NewLineProtocol()
 	} else {
 		fmt.Println(errors.New("Invalid protocol " + cfg.bprotocol + " specified"))
 		return

@@ -354,14 +354,14 @@ func main() {
 }
 ```
 
-### BGraph Protocol
+### Line Graph Protocol
 
 broadcast-server also implements a much simpler protocol which is in the
 format of *CMD arg1 arg2...\r\n*. If you startup the broadcast server with
 the following command line:
 
 ```
-$ broadcast-server -bprotocol="bgraph"
+$ broadcast-server -h="127.0.0.1" -p=7331 -bprotocol="line"
 [71443] 14 Sep 14 12:36 MDT # WARNING: no config file specified, using the default config
 [71443] 14 Sep 14 12:36 MDT #
 
@@ -377,10 +377,10 @@ $ broadcast-server -bprotocol="bgraph"
 Then you can access it via echo and netcat commands make this process much simpler.
 
 ```
-$ echo -e "SET foo 9\r\n" | nc 127.0.0.1 7331
+$ echo "SET foo 9" | nc 127.0.0.1 7331
 :1
 
-$ echo -e "GET foo\r\n" | nc 127.0.0.1 7331
+$ echo "GET foo" | nc 127.0.0.1 7331
 :9
 ```
 

@@ -1,4 +1,4 @@
-package bgraphProtocol
+package lineProtocol
 
 import (
 	"errors"
@@ -11,25 +11,25 @@ import (
 	"github.com/nyxtom/broadcast/server"
 )
 
-type BGraphProtocol struct {
+type LineProtocol struct {
 	ctx *server.BroadcastContext
 }
 
-func NewBGraphProtocol() *BGraphProtocol {
-	return new(BGraphProtocol)
+func NewLineProtocol() *LineProtocol {
+	return new(LineProtocol)
 }
 
-func (p *BGraphProtocol) Initialize(ctx *server.BroadcastContext) error {
+func (p *LineProtocol) Initialize(ctx *server.BroadcastContext) error {
 	p.ctx = ctx
 	return nil
 }
 
-func (p *BGraphProtocol) HandleConnection(conn *net.TCPConn) (server.ProtocolClient, error) {
-	return NewBGraphProtocolClientSize(conn, 128)
+func (p *LineProtocol) HandleConnection(conn *net.TCPConn) (server.ProtocolClient, error) {
+	return NewLineProtocolClientSize(conn, 128)
 }
 
-func (p *BGraphProtocol) RunClient(client server.ProtocolClient) {
-	c, ok := client.(*BGraphProtocolClient)
+func (p *LineProtocol) RunClient(client server.ProtocolClient) {
+	c, ok := client.(*LineProtocolClient)
 	if !ok {
 		client.WriteError(errInvalidProtocol)
 		client.Close()
@@ -71,7 +71,7 @@ func (p *BGraphProtocol) RunClient(client server.ProtocolClient) {
 	}
 }
 
-func (p *BGraphProtocol) handleData(data [][]byte, client *BGraphProtocolClient) error {
+func (p *LineProtocol) handleData(data [][]byte, client *LineProtocolClient) error {
 	cmd := strings.ToUpper(string(data[0]))
 	switch {
 	case cmd == "QUIT":
