@@ -12,20 +12,23 @@ while being able to work directly with typed data.
 ## Features
 
 + broadcast-server can listen on tcp
-+ pluggable protocols (redis protocol implemented)
++ pluggable protocols (redis, interface, line)
 + supports reading and writing: int64, float64, string, byte, []byte,
   error, and bool.
-+ registered command callbacks will receive typed data as it was parsed
-  (i.e. ADD will receive an array of numbers which might be floats/ints)
++ interface protocol will use registered command callbacks will receive typed data as it was parsed
+  (i.e. SUM will receive an array of numbers which might be floats/ints)
 + broadcast-cli connects to the server to see a list of routines supported
   by the server and caches them locally for easy lookup & auto-completion
-+ stats-aware, broadcast has built in stats tracking to not only monitor 
-  it's own state and report it out, but is able to handle generic stat
-  routines through extended modules (i.e. broadcast-stats)
++ stats-aware, broadcast-server has built in stats backend that can be
+  used to perform common stats commands similar to redis, counters similar
+  to statsd, keys..etc. This backend works over the redis, interface and
+  line protocols are are supported by broadcast-server.
 + broadcast-benchmark for benchmarking various async/non-async commands
++ commands can be written as fire-and-forget over the standard tcp stack
+  that way clients know which commands need to be read odd immediately for
+  replies. (i.e. COUNT foo will not return a reply).
 
 ## TODO
-+ configuration/support for listening on udp
 + cluster-aware configuration, allow broadcast-server to inspect commands 
   and determine whether both the command or the first key of the arguments
   is handled by a different server altogether using a hashring config.
@@ -85,6 +88,23 @@ func RegisterBackend(app *server.BroadcastServer) (server.Backend, error) {
 	app.RegisterCommand(server.Command{"SETNX", "Sets the specified key to the given value only if the key is not already set.", "SETNX key 1234", false}, backend.SetNx)
 	app.RegisterCommand(server.Command{"KEYS", "Returns the list of keys available or by pattern", "KEYS [pattern]", false}, backend.Keys)
 	return backend, nil
+}
+```
+
+### Commands
+
+```
+package server
+
+// Handler is the actual function declaration that is provided argument data, client, and server
+type Handler func(interface{}, ProtocolClient) error
+
+// Command describes a command handler with name, description, usage
+type Command struct {
+	Name        string // name of the command
+	Description string // description of the command
+	Usage       string // example usage of the command
+	FireForget  bool   // true to ignore responses, false to wait for a response
 }
 ```
 
