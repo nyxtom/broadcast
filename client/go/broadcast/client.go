@@ -7,6 +7,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/nyxtom/broadcast/protocols/bgraph"
 	"github.com/nyxtom/broadcast/protocols/redis"
 	"github.com/nyxtom/broadcast/server"
 )
@@ -167,6 +168,8 @@ func (c *ClientConnection) newClient(conn net.Conn) (server.ProtocolClient, erro
 	switch c.bprotocol {
 	case "redis":
 		return redisProtocol.NewRedisProtocolClient(conn)
+	case "bgraph":
+		return bgraphProtocol.NewBGraphProtocolClient(conn)
 	default:
 		return server.NewNetworkClient(conn)
 	}

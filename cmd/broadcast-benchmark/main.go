@@ -12,6 +12,7 @@ import (
 
 var ip = flag.String("ip", "127.0.0.1", "broadcast-server ip")
 var port = flag.Int("port", 7331, "broadcast-server port")
+var bprotocol = flag.String("bprotocol", "redis", "broadcast-server protocol")
 var number = flag.Int("n", 1000, "request number")
 var clients = flag.Int("c", 50, "number of clients")
 
@@ -146,7 +147,7 @@ func main() {
 	}
 
 	loop = *number / *clients
-	client, _ = broadcast.NewClient(*port, *ip, 1, "redis")
+	client, _ = broadcast.NewClient(*port, *ip, 1, *bprotocol)
 	benchSet()
 	benchPing()
 	benchGet()
