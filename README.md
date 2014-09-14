@@ -258,7 +258,10 @@ func (b *CustomBackend) Unload() error {
 ```
 
 Then in the actual app-server itself, you can call the load backend to
-ensure that our newly created custom backend is loaded.
+ensure that our newly created custom backend is loaded. We will use the 
+default broadcast server protocol which allows us to work directly with
+interfaces instead of [][]byte data when it's written to and from clients
+to and from servers.
 
 ```
 package main
@@ -275,7 +278,6 @@ import (
 	"time"
 
 	"github.com/nyxtom/broadcast/server"
-	"github.com/nyxtom/broadcast/protocols/redis"
 )
 
 var LogoHeader = `
@@ -290,7 +292,7 @@ func main() {
 	var port = flag.Int("p", 7331, "Broadcast custom port to bind to")
 
 	// create a new broadcast server
-	app, err := server.ListenProtocol(*port, *host, redisProtocol.NewRedisProtocol())
+	app, err := server.Listen(*port, *host)
 	app.Header = ""
 	app.Name = "Broadcast Custom"
 	app.Version = "0.1"
