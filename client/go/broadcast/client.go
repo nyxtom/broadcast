@@ -22,6 +22,7 @@ type Client struct {
 	host        string
 	addr        string
 	maxIdle     int
+	serverAddr  *net.TCPAddr
 	connections *list.List
 }
 
@@ -34,6 +35,11 @@ func NewClient(port int, host string, maxIdle int, bprotocol string) (*Client, e
 	client.addr = host + ":" + strconv.Itoa(port)
 	client.connections = list.New()
 	client.maxIdle = maxIdle
+	serverAddr, err := net.ResolveTCPAddr("tcp", client.addr)
+	if err != nil {
+		return nil, err
+	}
+	client.serverAddr = serverAddr
 	return client, nil
 }
 
@@ -77,6 +83,7 @@ func (client *Client) get() *ClientConnection {
 		c.addr = client.addr
 		c.protocol = client.protocol
 		c.bprotocol = client.bprotocol
+		c.serverAddr = client.serverAddr
 		return c
 	} else {
 		e := client.connections.Front()
@@ -104,6 +111,7 @@ type ClientConnection struct {
 	bprotocol  string
 	addr       string
 	netClient  server.ProtocolClient
+	serverAddr *net.TCPAddr
 	lastActive time.Time
 }
 
@@ -151,7 +159,7 @@ func (c *ClientConnection) connect() error {
 		return nil
 	}
 
-	conn, err := net.Dial(c.protocol, c.addr)
+	conn, err := net.DialTCP(c.protocol, nil, c.serverAddr)
 	if err != nil {
 		return err
 	}
@@ -164,7 +172,7 @@ func (c *ClientConnection) connect() error {
 	return nil
 }
 
-func (c *ClientConnection) newClient(conn net.Conn) (server.ProtocolClient, error) {
+func (c *ClientConnection) newClient(conn *net.TCPConn) (server.ProtocolClient, error) {
 	switch c.bprotocol {
 	case "redis":
 		return redisProtocol.NewRedisProtocolClient(conn)

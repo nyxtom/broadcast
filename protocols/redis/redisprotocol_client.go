@@ -13,12 +13,12 @@ type RedisProtocolClient struct {
 	server.NetworkClient
 }
 
-func NewRedisProtocolClient(conn net.Conn) (*RedisProtocolClient, error) {
+func NewRedisProtocolClient(conn *net.TCPConn) (*RedisProtocolClient, error) {
 	c, err := NewRedisProtocolClientSize(conn, 128)
 	return c, err
 }
 
-func NewRedisProtocolClientSize(conn net.Conn, bufferSize int) (*RedisProtocolClient, error) {
+func NewRedisProtocolClientSize(conn *net.TCPConn, bufferSize int) (*RedisProtocolClient, error) {
 	client := new(RedisProtocolClient)
 	client.Initialize(conn, bufferSize)
 	return client, nil

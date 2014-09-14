@@ -3,7 +3,6 @@ package bgraphProtocol
 import (
 	"bytes"
 	"fmt"
-	"io"
 	"net"
 	"strings"
 
@@ -14,11 +13,11 @@ type BGraphProtocolClient struct {
 	server.NetworkClient
 }
 
-func NewBGraphProtocolClient(conn net.Conn) (*BGraphProtocolClient, error) {
-	return NewBGraphProtocolClientSize(conn, 256)
+func NewBGraphProtocolClient(conn *net.TCPConn) (*BGraphProtocolClient, error) {
+	return NewBGraphProtocolClientSize(conn, 128)
 }
 
-func NewBGraphProtocolClientSize(conn net.Conn, bufferSize int) (*BGraphProtocolClient, error) {
+func NewBGraphProtocolClientSize(conn *net.TCPConn, bufferSize int) (*BGraphProtocolClient, error) {
 	client := new(BGraphProtocolClient)
 	client.Initialize(conn, bufferSize)
 	return client, nil
@@ -32,29 +31,31 @@ func (proto *BGraphProtocolClient) readBulk() ([][]byte, error) {
 		return nil, errReadRequest
 	}
 
-	if line[0] != packetLengthByte {
-		return nil, errReadRequest
-	}
-
-	n, err := proto.ParseInt64(line[1:])
-	if err == nil {
-		buffer := make([]byte, n)
-		_, err := io.ReadFull(proto.Reader, buffer)
-		if err != nil {
-			return nil, err
+	/*
+		if line[0] != packetLengthByte {
+			return nil, errReadRequest
 		}
 
-		line, err := proto.ReadLine()
-		if err != nil {
-			return nil, err
-		} else if len(line) != 0 {
-			return nil, errBadBulkFormat
-		}
+			n, err := proto.ParseInt64(line[1:])
+			if err == nil {
+				buffer := make([]byte, n)
+				_, err := io.ReadFull(proto.Reader, buffer)
+				if err != nil {
+					return nil, err
+				}
 
-		return bytes.Split(buffer, splitBulkDelim), nil
-	}
+				line, err := proto.ReadLine()
+				if err != nil {
+					return nil, err
+				} else if len(line) != 0 {
+					return nil, errBadBulkFormat
+				}
 
-	return nil, err
+	*/
+	return bytes.Split(line, splitBulkDelim), nil
+	//	}
+
+	//	return nil, err
 }
 
 func (client *BGraphProtocolClient) WriteCommand(cmd string, args []interface{}) error {
@@ -68,7 +69,7 @@ func (client *BGraphProtocolClient) WriteCommand(cmd string, args []interface{})
 		buffer.Write(splitBulkDelim)
 		buffer.Write(buf.Bytes())
 	}
-	client.WriteLen(packetLengthByte, buffer.Len())
+	//client.WriteLen(packetLengthByte, buffer.Len())
 	client.Writer.Write(buffer.Bytes())
 	client.Writer.Write(lineDelims)
 	client.Flush()

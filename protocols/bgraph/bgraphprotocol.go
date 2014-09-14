@@ -24,8 +24,8 @@ func (p *BGraphProtocol) Initialize(ctx *server.BroadcastContext) error {
 	return nil
 }
 
-func (p *BGraphProtocol) HandleConnection(conn net.Conn) (server.ProtocolClient, error) {
-	return NewBGraphProtocolClientSize(conn, 256)
+func (p *BGraphProtocol) HandleConnection(conn *net.TCPConn) (server.ProtocolClient, error) {
+	return NewBGraphProtocolClientSize(conn, 128)
 }
 
 func (p *BGraphProtocol) RunClient(client server.ProtocolClient) {

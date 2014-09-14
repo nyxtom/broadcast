@@ -19,7 +19,7 @@ type ProtocolClient interface {
 	Address() string
 	WaitExit() chan struct{}
 
-	Initialize(conn net.Conn, bufferSize int)
+	Initialize(conn *net.TCPConn, bufferSize int)
 	Flush() error
 
 	WriteLen(prefix byte, n int) error
@@ -62,7 +62,7 @@ type NetworkClient struct {
 
 	Addr   string        // remote address identifier
 	Closed bool          // closed boolean identifier
-	Conn   net.Conn      // network connection associated with this client
+	Conn   *net.TCPConn  // network connection associated with this client
 	Quit   chan struct{} // channel for when the client exits
 }
 
@@ -93,18 +93,18 @@ func (netClient NetworkClient) WaitExit() chan struct{} {
 	return netClient.Quit
 }
 
-func NewNetworkClient(conn net.Conn) (*NetworkClient, error) {
+func NewNetworkClient(conn *net.TCPConn) (*NetworkClient, error) {
 	c, err := NewNetworkClientSize(conn, 128)
 	return c, err
 }
 
-func NewNetworkClientSize(conn net.Conn, bufferSize int) (*NetworkClient, error) {
+func NewNetworkClientSize(conn *net.TCPConn, bufferSize int) (*NetworkClient, error) {
 	client := new(NetworkClient)
 	client.Initialize(conn, bufferSize)
 	return client, nil
 }
 
-func (client *NetworkClient) Initialize(conn net.Conn, bufferSize int) {
+func (client *NetworkClient) Initialize(conn *net.TCPConn, bufferSize int) {
 	client.Conn = conn
 	client.Reader = bufio.NewReaderSize(conn, bufferSize)
 	client.Writer = bufio.NewWriterSize(conn, bufferSize)

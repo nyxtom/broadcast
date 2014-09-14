@@ -17,7 +17,7 @@ type BroadcastServer struct {
 	addr     string                    // address to bind to
 	bit      string                    // 32-bit vs 64-bit version
 	pid      int                       // pid of the broadcast server
-	listener net.Listener              // listener for the broadcast server
+	listener *net.TCPListener          // listener for the broadcast server
 	clients  map[string]ProtocolClient // clients is a map of all the connected clients to the server
 	ctx      *BroadcastContext
 	backends []Backend               // registered backends with the broadcast server
@@ -58,7 +58,12 @@ func ListenProtocol(port int, host string, protocol BroadcastServerProtocol) (*B
 	app.pid = os.Getpid()
 
 	// listen on the given protocol/port/host
-	listener, err := net.Listen("tcp", app.addr)
+	serverAddr, err := net.ResolveTCPAddr("tcp", app.addr)
+	if err != nil {
+		return nil, err
+	}
+
+	listener, err := net.ListenTCP("tcp", serverAddr)
 	if err != nil {
 		return nil, err
 	}
@@ -148,7 +153,7 @@ func (app *BroadcastServer) AcceptConnections() {
 
 	// accept connections, handle them via the protocol and run them
 	for !app.Closed {
-		connection, err := app.listener.Accept()
+		connection, err := app.listener.AcceptTCP()
 		if err != nil {
 			app.Events <- BroadcastEvent{"error", "accept error", err, nil}
 			continue

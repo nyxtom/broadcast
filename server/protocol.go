@@ -10,7 +10,7 @@ import (
 )
 
 type BroadcastServerProtocol interface {
-	HandleConnection(conn net.Conn) (ProtocolClient, error)
+	HandleConnection(conn *net.TCPConn) (ProtocolClient, error)
 	RunClient(client ProtocolClient)
 	Initialize(ctx *BroadcastContext) error
 }
@@ -31,7 +31,7 @@ func (p *DefaultBroadcastServerProtocol) Initialize(ctx *BroadcastContext) error
 // HandleConnection will create several routines for handling a new network connection to the broadcast server.
 // This method will create a simple client, spawn both write and read routines where appropriate, handle
 // disconnects, and finalize the client connection when the server is disposing
-func (p *DefaultBroadcastServerProtocol) HandleConnection(conn net.Conn) (ProtocolClient, error) {
+func (p *DefaultBroadcastServerProtocol) HandleConnection(conn *net.TCPConn) (ProtocolClient, error) {
 	return NewNetworkClient(conn)
 }
 

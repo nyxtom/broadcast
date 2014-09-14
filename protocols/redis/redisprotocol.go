@@ -27,7 +27,7 @@ func (p *RedisProtocol) Initialize(ctx *server.BroadcastContext) error {
 	return nil
 }
 
-func (p *RedisProtocol) HandleConnection(conn net.Conn) (server.ProtocolClient, error) {
+func (p *RedisProtocol) HandleConnection(conn *net.TCPConn) (server.ProtocolClient, error) {
 	return NewRedisProtocolClientSize(conn, 128)
 }
 
