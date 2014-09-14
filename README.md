@@ -199,26 +199,48 @@ app.RegisterCommand(server.Command{"PING", "Pings the server for a response", ""
 
 ### ECHO
 
-Echo is another simple command that is automaticall registered on
+Echo is another simple command that is automatically registered on
 start-up by the broadcast-server via the default backend.
 
 ```
 package server
 
 func (b *DefaultBackend) echo(data interface{}, client server.ProtocolClient) error {
-	d, _ := data.([]interface{})
-	if len(d) == 0 {
-		client.WriteString("")
-		client.Flush()
-		return nil
-	} else {
-		if len(d) == 1 {
-			client.WriteInterface(d[0])
+	d, okInterface := data.([]interface{})
+	if okInterface {
+		if len(d) == 0 {
+			client.WriteString("")
+			client.Flush()
+			return nil
 		} else {
-			client.WriteArray(d)
+			if len(d) == 1 {
+				fmt.Printf("%v", d[0])
+				client.WriteInterface(d[0])
+			} else {
+				client.WriteArray(d)
+			}
+			client.Flush()
+			return nil
 		}
-		client.Flush()
-		return nil
+	} else {
+		b, _ := data.([][]byte)
+		if len(b) == 0 {
+			client.WriteString("")
+			client.Flush()
+			return nil
+		} else {
+			if len(b) == 1 {
+				client.WriteString(string(b[0]))
+			} else {
+				s := make([]string, len(b))
+				for i, k := range b {
+					s[i] = string(k)
+				}
+				client.WriteString(strings.Join(s, " "))
+			}
+			client.Flush()
+			return nil
+		}
 	}
 }
 ```
