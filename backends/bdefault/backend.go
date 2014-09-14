@@ -1,6 +1,10 @@
 package bdefault
 
-import "github.com/nyxtom/broadcast/server"
+import (
+	"fmt"
+
+	"github.com/nyxtom/broadcast/server"
+)
 
 type DefaultBackend struct {
 	server.Backend
@@ -31,19 +35,39 @@ func (b *DefaultBackend) help(data interface{}, client server.ProtocolClient) er
 }
 
 func (b *DefaultBackend) echo(data interface{}, client server.ProtocolClient) error {
-	d, _ := data.([]interface{})
-	if len(d) == 0 {
-		client.WriteString("")
-		client.Flush()
-		return nil
-	} else {
-		if len(d) == 1 {
-			client.WriteInterface(d[0])
+	d, okInterface := data.([]interface{})
+	if okInterface {
+		if len(d) == 0 {
+			client.WriteString("")
+			client.Flush()
+			return nil
 		} else {
-			client.WriteArray(d)
+			if len(d) == 1 {
+				fmt.Printf("%v", d[0])
+				client.WriteInterface(d[0])
+			} else {
+				client.WriteArray(d)
+			}
+			client.Flush()
+			return nil
 		}
-		client.Flush()
-		return nil
+	} else {
+		b, _ := data.([][]byte)
+		if len(b) == 0 {
+			client.WriteString("")
+			client.Flush()
+			return nil
+		} else {
+			if len(b) == 1 {
+				client.WriteString(string(b[0]))
+			} else {
+				for _, v := range b {
+					client.WriteString(string(v))
+				}
+			}
+			client.Flush()
+			return nil
+		}
 	}
 }
 
