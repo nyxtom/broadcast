@@ -118,6 +118,7 @@ care about the response. For instance, we could perform the following:
 ```
 $ broadcast-cli -h="127.0.0.1" -p=7331
 127.0.0.1:7331> INCR foo 234
+(integer) 234
 
 127.0.0.1:7331> GET foo
 (integer) 234
