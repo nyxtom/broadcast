@@ -25,7 +25,7 @@ while being able to work directly with typed data.
   line protocols are are supported by broadcast-server.
 + broadcast-benchmark for benchmarking various async/non-async commands
 + commands can be written as fire-and-forget over the standard tcp stack
-  that way clients know which commands need to be read odd immediately for
+  that way clients know which commands need to be read immediately for
   replies. (i.e. COUNT foo will not return a reply).
 
 ## TODO
