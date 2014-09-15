@@ -7,11 +7,15 @@ import (
 	"time"
 )
 
+var empty struct{}
+
 type MemoryBackend struct {
 	sync.Mutex
 
 	counters          map[string]*Counter
 	values            map[string]int64
+	sets              map[string]map[string]struct{}
+	setLock           sync.Mutex
 	maxCounterHistory int
 	lastTimeStamp     time.Time
 }
@@ -30,6 +34,7 @@ func NewMemoryBackend() (*MemoryBackend, error) {
 	mem := new(MemoryBackend)
 	mem.counters = make(map[string]*Counter)
 	mem.values = make(map[string]int64)
+	mem.sets = make(map[string]map[string]struct{})
 	mem.maxCounterHistory = 100
 	mem.lastTimeStamp = time.Now()
 	return mem, nil
@@ -166,6 +171,67 @@ func (mem *MemoryBackend) SetNx(name string, value int64) (int64, error) {
 		return 1, nil
 	} else {
 		return -1, nil
+	}
+}
+
+func (mem *MemoryBackend) SAdd(name string, value string) (int64, error) {
+	mem.setLock.Lock()
+	defer mem.setLock.Unlock()
+
+	set, ok := mem.sets[name]
+	if !ok {
+		set = make(map[string]struct{})
+		mem.sets[name] = set
+	}
+
+	_, ok = set[value]
+	if ok {
+		return 0, nil
+	} else {
+		set[value] = empty
+		return 1, nil
+	}
+}
+
+func (mem *MemoryBackend) SRem(name string, value string) (int64, error) {
+	mem.setLock.Lock()
+	defer mem.setLock.Unlock()
+
+	set, ok := mem.sets[name]
+	if !ok {
+		return -1, nil
+	}
+
+	_, ok = set[value]
+	if ok {
+		delete(set, value)
+		return 1, nil
+	} else {
+		return 0, nil
+	}
+}
+
+func (mem *MemoryBackend) SCard(name string) (int64, error) {
+	mem.setLock.Lock()
+	defer mem.setLock.Unlock()
+
+	set, ok := mem.sets[name]
+	if ok {
+		return int64(len(set)), nil
+	} else {
+		return 0, nil
+	}
+}
+
+func (mem *MemoryBackend) SMembers(name string) (map[string]struct{}, error) {
+	mem.setLock.Lock()
+	defer mem.setLock.Unlock()
+
+	set, ok := mem.sets[name]
+	if ok {
+		return set, nil
+	} else {
+		return nil, nil
 	}
 }
 

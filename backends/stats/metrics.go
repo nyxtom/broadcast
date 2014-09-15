@@ -30,6 +30,11 @@ type Metrics interface {
 	Set(name string, value int64) (int64, error)
 	SetNx(name string, value int64) (int64, error)
 
+	SAdd(name string, value string) (int64, error)
+	SRem(name string, value string) (int64, error)
+	SCard(name string) (int64, error)
+	SMembers(name string) (map[string]struct{}, error)
+
 	Keys(pattern string) ([]string, error)
 }
 
@@ -284,6 +289,109 @@ func (stats *StatsBackend) Keys(data interface{}, client server.ProtocolClient) 
 	return nil
 }
 
+func (stats *StatsBackend) SAdd(data interface{}, client server.ProtocolClient) error {
+	d, _ := data.([][]byte)
+	key := ""
+	if len(d) < 2 {
+		client.WriteError(errors.New("SADD takes at least 2 parameters (SADD key member)"))
+		client.Flush()
+		return nil
+	} else {
+		key = string(d[0])
+		members := d[1:]
+		result := int64(0)
+		for _, v := range members {
+			r, err := stats.mem.SAdd(key, string(v))
+			if err != nil {
+				return err
+			} else {
+				result += r
+			}
+		}
+
+		return stats.FlushInt(result, nil, client)
+	}
+}
+
+func (stats *StatsBackend) SRem(data interface{}, client server.ProtocolClient) error {
+	d, _ := data.([][]byte)
+	key := ""
+	if len(d) < 2 {
+		client.WriteError(errors.New("SREM takes at least 2 parameters (SREM key member)"))
+		client.Flush()
+		return nil
+	} else {
+		key = string(d[0])
+		members := d[1:]
+		result := int64(0)
+		for _, v := range members {
+			r, err := stats.mem.SRem(key, string(v))
+			if err != nil {
+				return err
+			} else if r == -1 {
+				return stats.FlushInt(r, nil, client)
+			} else {
+				result += r
+			}
+		}
+
+		return stats.FlushInt(result, nil, client)
+	}
+}
+
+func (stats *StatsBackend) SCard(data interface{}, client server.ProtocolClient) error {
+	d, _ := data.([][]byte)
+	if len(d) < 1 {
+		client.WriteError(errors.New("SCARD takes at least 1 parameter (SCARD key)"))
+		client.Flush()
+		return nil
+	} else {
+		results := make([]int64, len(d))
+		for i, v := range d {
+			r, err := stats.mem.SCard(string(v))
+			if err != nil {
+				return err
+			} else {
+				results[i] = r
+			}
+		}
+
+		client.WriteLen('*', len(d))
+		for _, v := range results {
+			client.WriteInt64(v)
+		}
+		client.Flush()
+		return nil
+	}
+}
+
+func (stats *StatsBackend) SMembers(data interface{}, client server.ProtocolClient) error {
+	d, _ := data.([][]byte)
+	if len(d) == 0 {
+		client.WriteError(errors.New("SMEMBERS takes 1 parameter (SMEMBERS key)"))
+		client.Flush()
+		return nil
+	} else {
+		values, err := stats.mem.SMembers(string(d[0]))
+		if err != nil {
+			return err
+		}
+
+		if values == nil {
+			client.WriteNull()
+			client.Flush()
+			return nil
+		}
+
+		client.WriteLen('*', len(values))
+		for k, _ := range values {
+			client.WriteString(k)
+		}
+		client.Flush()
+		return nil
+	}
+}
+
 func RegisterBackend(app *server.BroadcastServer) (server.Backend, error) {
 	backend := new(StatsBackend)
 	mem, err := NewMemoryBackend()
@@ -303,6 +411,10 @@ func RegisterBackend(app *server.BroadcastServer) (server.Backend, error) {
 	app.RegisterCommand(server.Command{"SET", "Sets the specified key to the specified value in values.", "SET key 1234", false}, backend.Set)
 	app.RegisterCommand(server.Command{"SETNX", "Sets the specified key to the given value only if the key is not already set.", "SETNX key 1234", false}, backend.SetNx)
 	app.RegisterCommand(server.Command{"KEYS", "Returns the list of keys available or by pattern", "KEYS [pattern]", false}, backend.Keys)
+	app.RegisterCommand(server.Command{"SADD", "Adds one or more members to a set", "SADD key member [member ...]", false}, backend.SAdd)
+	app.RegisterCommand(server.Command{"SREM", "Removes one or more members from a set", "SREM key member [member ...]", false}, backend.SRem)
+	app.RegisterCommand(server.Command{"SCARD", "Gets the number of members from a set", "SCARD key [key ...]", false}, backend.SCard)
+	app.RegisterCommand(server.Command{"SMEMBERS", "Gets all the members in a set", "SMEMBERS key", false}, backend.SMembers)
 	return backend, nil
 }
 

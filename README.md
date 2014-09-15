@@ -482,29 +482,6 @@ $ broadcast-stats
 ```
 $ broadcast-cli -h="127.0.0.1" -p=7331 -bprotocol="redis"
 127.0.0.1:7331> CMDS
-SETNX
- Sets the specified key to the given value only if the key is not already set.
- usage: SETNX key 1234
-
-EXISTS
- Determines if the given key exists from the values.
- usage: EXISTS key
-
-GET
- Gets the specified key from the values.
- usage: GET key
-
-DECR
- Decrements a key by the specified value or by default 1.
- usage: DECR key [1]
-
-DEL
- Deletes a key from the values or counters list or both.
- usage: DEL key
-
-PING
- Pings the server for a response
-
 CMDS
  List of available commands supported by the server
 
@@ -515,13 +492,25 @@ COUNT
 COUNTERS
  Returns the list of active counters.
 
-SET
- Sets the specified key to the specified value in values.
- usage: SET key 1234
+DECR
+ Decrements a key by the specified value or by default 1.
+ usage: DECR key [1]
+
+DEL
+ Deletes a key from the values or counters list or both.
+ usage: DEL key
 
 ECHO
  Echos back a message sent
  usage: ECHO "hello world"
+
+EXISTS
+ Determines if the given key exists from the values.
+ usage: EXISTS key
+
+GET
+ Gets the specified key from the values.
+ usage: GET key
 
 INCR
  Increments a key by the specified value or by default 1.
@@ -533,6 +522,33 @@ INFO
 KEYS
  Returns the list of keys available or by pattern
  usage: KEYS [pattern]
+
+PING
+ Pings the server for a response
+
+SADD
+ Adds one or more members to a set
+ usage: SADD key member [member ...]
+
+SCARD
+ Gets the number of members from a set
+ usage: SCARD key [key ...]
+
+SET
+ Sets the specified key to the specified value in values.
+ usage: SET key 1234
+
+SETNX
+ Sets the specified key to the given value only if the key is not already set.
+ usage: SETNX key 1234
+
+SMEMBERS
+ Gets all the members in a set
+ usage: SMEMBERS key
+
+SREM
+ Removes one or more members from a set
+ usage: SREM key member [member ...]
 
 127.0.0.1:7331>
 ```
