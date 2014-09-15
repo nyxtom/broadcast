@@ -22,7 +22,7 @@ while being able to work directly with typed data.
 + stats-aware, broadcast-server has built in stats backend that can be
   used to perform common stats commands similar to redis, counters similar
   to statsd, keys..etc. This backend works over the redis, interface and
-  line protocols are are supported by broadcast-server.
+  line protocols and are supported by broadcast-server.
 + broadcast-benchmark for benchmarking various async/non-async commands
 + commands can be written as fire-and-forget over the standard tcp stack
   that way clients know which commands need to be read immediately for
