@@ -20,6 +20,7 @@ func main() {
 	var port = flag.Int("p", 7331, "broadcast server port (default 7331)")
 	var maxIdle = flag.Int("i", 1, "max idle client connections to pool from")
 	var bprotocol = flag.String("bprotocol", "redis", "broadcast server protocol to follow")
+	var skipCmd = flag.Bool("skipcmds", false, "skip the initial cmds command if the server doesnt support it")
 
 	flag.Parse()
 
@@ -31,11 +32,13 @@ func main() {
 	}
 
 	// perform the initial cmds to see what is available
-	reply, err := c.Do("cmds")
-	if err != nil {
-		fmt.Printf("%s", err.Error())
-	} else {
-		printReply("cmds", reply, "")
+	if !*skipCmd {
+		reply, err := c.Do("cmds")
+		if err != nil {
+			fmt.Printf("%s", err.Error())
+		} else {
+			printReply("cmds", reply, "")
+		}
 	}
 
 	SetCompletionHandler(completionHandler)
@@ -110,13 +113,17 @@ func isCmdAsync(cmd string) bool {
 
 func printReply(cmd string, reply interface{}, indent string) {
 	if strings.ToLower(cmd) == "cmds" {
-		reply := reply.(map[string]interface{})
+		r, ok := reply.(map[string]interface{})
+		if !ok {
+			fmt.Printf("%s\n", string(reply.(error).Error()))
+			return
+		}
 		helpReply := false
 		if helpCommands == nil || len(helpCommands) == 0 {
 			helpReply = true
 			helpCommands = make([][]string, 0)
 		}
-		for k, v := range reply {
+		for k, v := range r {
 			cmd := v.(map[string]interface{})
 			desc := cmd["Description"].(string)
 			usage := cmd["Usage"].(string)
