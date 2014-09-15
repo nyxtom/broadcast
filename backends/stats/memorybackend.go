@@ -235,18 +235,119 @@ func (mem *MemoryBackend) SMembers(name string) (map[string]struct{}, error) {
 	}
 }
 
+func (mem *MemoryBackend) SDiff(resultSet map[string]struct{}, name string) (map[string]struct{}, error) {
+	mem.setLock.Lock()
+	defer mem.setLock.Unlock()
+
+	set, ok := mem.sets[name]
+	if !ok {
+		return resultSet, nil
+	} else {
+		// resultSet: a, b, c
+		// set: a
+		// output: -> b, c
+
+		// resultSet: a, b
+		// set: a, c, k
+		// output: -> b
+		results := make(map[string]struct{})
+		for k, _ := range resultSet {
+			if _, ok = set[k]; !ok {
+				results[k] = empty
+			}
+		}
+
+		return results, nil
+	}
+}
+
+func (mem *MemoryBackend) SIsMember(name string, value string) (int64, error) {
+	mem.setLock.Lock()
+	defer mem.setLock.Unlock()
+
+	set, ok := mem.sets[name]
+	if ok {
+		_, ok = set[value]
+		if ok {
+			return 1, nil
+		}
+	}
+
+	return 0, nil
+}
+
+func (mem *MemoryBackend) SUnion(names []string) (map[string]struct{}, error) {
+	mem.setLock.Lock()
+	defer mem.setLock.Unlock()
+
+	results := make(map[string]struct{})
+	for _, v := range names {
+		if result, ok := mem.sets[v]; ok {
+			for k, _ := range result {
+				results[k] = empty
+			}
+		}
+	}
+
+	return results, nil
+}
+
+func (mem *MemoryBackend) SInter(names []string) (map[string]struct{}, error) {
+	mem.setLock.Lock()
+	defer mem.setLock.Unlock()
+
+	values := make([]map[string]struct{}, len(names))
+	minimalSetIndex := 0
+	for i, v := range names {
+		result, ok := mem.sets[v]
+		if !ok {
+			return nil, nil
+		} else {
+			values[i] = result
+
+			if len(result) < len(values[minimalSetIndex]) {
+				minimalSetIndex = i
+			}
+		}
+	}
+
+	minimalSet := values[minimalSetIndex]
+	results := make(map[string]struct{})
+	for k, _ := range minimalSet {
+		value := true
+		for i, v := range values {
+			if i == minimalSetIndex {
+				continue
+			}
+
+			if _, ok := v[k]; !ok {
+				value = false
+				break
+			}
+		}
+
+		if value {
+			results[k] = empty
+		}
+	}
+
+	return results, nil
+}
+
 func (mem *MemoryBackend) Keys(pattern string) ([]string, error) {
 	mem.Lock()
 	defer mem.Unlock()
 
-	results := make([]string, 0)
 	if pattern == "" || pattern == "*" {
+		results := make([]string, len(mem.values))
+		iter := 0
 		for k, _ := range mem.values {
-			results = append(results, k)
+			results[iter] = k
 		}
 		return results, nil
 	} else {
 		patterns := strings.Split(pattern, "*")
+		results := make([]string, 0)
 		if len(patterns) == 1 {
 			for k, _ := range mem.values {
 				if k == pattern {

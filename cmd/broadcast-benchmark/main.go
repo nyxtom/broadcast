@@ -49,6 +49,16 @@ func waitBench(cmd string, args ...interface{}) {
 	}
 }
 
+func setupBench(cmd string, args ...interface{}) {
+	c := client.Get()
+	defer client.CloseConnection(c)
+	_, err := c.Do(cmd, args...)
+	if err != nil {
+		fmt.Printf("do %s error %s", cmd, err.Error())
+		return
+	}
+}
+
 func bench(cmd string, f func()) {
 	wg.Add(*clients)
 
@@ -133,6 +143,67 @@ func benchSetNx() {
 	bench("SETNX", f)
 }
 
+func benchSAdd() {
+	n := rand.Int()
+	f := func() {
+		waitBench("SADD", string(n), n)
+	}
+
+	bench("SADD", f)
+}
+
+func benchSRem() {
+	results := make([]string, 10)
+	for i, _ := range results {
+		results[i] = string(rand.Int())
+	}
+
+	n := rand.Int()
+	setupBench("SADD", string(n), results)
+
+	f := func() {
+		waitBench("SREM", string(n), results)
+	}
+
+	bench("SREM", f)
+}
+
+func benchSCard() {
+	n := rand.Int()
+	f := func() {
+		waitBench("SCARD", string(n), n)
+	}
+
+	bench("SCARD", f)
+}
+
+func benchSDiff() {
+	n := rand.Int()
+	f := func() {
+		waitBench("SDIFF", string(n), string(n))
+	}
+
+	bench("SDIFF", f)
+}
+
+func benchSIsMember() {
+	n := rand.Int()
+	f := func() {
+		waitBench("SISMEMBER", string(n), string(n))
+	}
+
+	bench("SISMEMBER", f)
+}
+
+func benchSMembers() {
+	n := rand.Int()
+	f := func() {
+		waitBench("SMEMBERS", string(n))
+	}
+
+	bench("SMEMBERS", f)
+}
+
 func main() {
 	flag.Parse()
 
@@ -156,4 +227,9 @@ func main() {
 	benchDecr()
 	benchCount()
 	benchSetNx()
+	benchSAdd()
+	benchSRem()
+	benchSCard()
+	benchSDiff()
+	benchSIsMember()
 }

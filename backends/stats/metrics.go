@@ -34,6 +34,10 @@ type Metrics interface {
 	SRem(name string, value string) (int64, error)
 	SCard(name string) (int64, error)
 	SMembers(name string) (map[string]struct{}, error)
+	SDiff(resultsSet map[string]struct{}, name string) (map[string]struct{}, error)
+	SIsMember(name string, value string) (int64, error)
+	SInter(names []string) (map[string]struct{}, error)
+	SUnion(names []string) (map[string]struct{}, error)
 
 	Keys(pattern string) ([]string, error)
 }
@@ -356,12 +360,50 @@ func (stats *StatsBackend) SCard(data interface{}, client server.ProtocolClient)
 			}
 		}
 
-		client.WriteLen('*', len(d))
-		for _, v := range results {
-			client.WriteInt64(v)
+		if len(d) > 1 {
+			client.WriteLen('*', len(d))
+			for _, v := range results {
+				client.WriteInt64(v)
+			}
+		} else {
+			client.WriteInt64(results[0])
 		}
 		client.Flush()
 		return nil
+	}
+}
+
+func (stats *StatsBackend) SDiff(data interface{}, client server.ProtocolClient) error {
+	d, _ := data.([][]byte)
+	if len(d) < 2 {
+		client.WriteError(errors.New("SDIFF requires at least 2 parameters (SDIFF key [key ...])"))
+		client.Flush()
+		return nil
+	} else {
+		results, err := stats.mem.SMembers(string(d[0]))
+		if err != nil {
+			return err
+		} else if results == nil {
+			client.WriteNull()
+			client.Flush()
+			return nil
+		} else {
+			for _, v := range d[1:] {
+				results, err = stats.mem.SDiff(results, string(v))
+				if err != nil {
+					return err
+				} else if len(results) == 0 {
+					break
+				}
+			}
+
+			client.WriteLen('*', len(results))
+			for k, _ := range results {
+				client.WriteString(k)
+			}
+			client.Flush()
+			return nil
+		}
 	}
 }
 
@@ -392,6 +434,92 @@ func (stats *StatsBackend) SMembers(data interface{}, client server.ProtocolClie
 	}
 }
 
+func (stats *StatsBackend) SIsMember(data interface{}, client server.ProtocolClient) error {
+	d, _ := data.([][]byte)
+	if len(d) < 2 {
+		client.WriteError(errors.New("SISMEMBER takes 2 parameters (SISMEMBER key member)"))
+		client.Flush()
+		return nil
+	} else {
+		key := string(d[0])
+		results := make([]int64, len(d)-1)
+		for i, v := range d[1:] {
+			result, err := stats.mem.SIsMember(key, string(v))
+			if err != nil {
+				return err
+			}
+			results[i] = result
+		}
+
+		if len(results) > 1 {
+			client.WriteLen('*', len(results))
+			for _, v := range results {
+				client.WriteInt64(v)
+			}
+		} else {
+			client.WriteInt64(results[0])
+		}
+		client.Flush()
+		return nil
+	}
+}
+
+func (stats *StatsBackend) SInter(data interface{}, client server.ProtocolClient) error {
+	d, _ := data.([][]byte)
+	if len(d) < 2 {
+		client.WriteError(errors.New("SINTER takes at least 2 parameters (SINTER key [key ...])"))
+		client.Flush()
+		return nil
+	} else {
+		keys := make([]string, len(d))
+		for i, v := range d {
+			keys[i] = string(v)
+		}
+		results, err := stats.mem.SInter(keys)
+		if err != nil {
+			return err
+		}
+
+		if results == nil {
+			client.WriteNull()
+			client.Flush()
+			return nil
+		}
+
+		client.WriteLen('*', len(results))
+		for k, _ := range results {
+			client.WriteString(k)
+		}
+		client.Flush()
+		return nil
+	}
+}
+
+func (stats *StatsBackend) SUnion(data interface{}, client server.ProtocolClient) error {
+	d, _ := data.([][]byte)
+	if len(d) < 2 {
+		client.WriteError(errors.New("SUNION takes at least 2 parameters (SINTER key [key ...])"))
+		client.Flush()
+		return nil
+	} else {
+		keys := make([]string, len(d))
+		for i, v := range d {
+			keys[i] = string(v)
+		}
+		results, err := stats.mem.SUnion(keys)
+		if err != nil {
+			return err
+		}
+
+		client.WriteLen('*', len(results))
+		for k, _ := range results {
+			client.WriteString(k)
+		}
+		client.Flush()
+		return nil
+	}
+}
+
 func RegisterBackend(app *server.BroadcastServer) (server.Backend, error) {
 	backend := new(StatsBackend)
 	mem, err := NewMemoryBackend()
@@ -411,10 +539,16 @@ func RegisterBackend(app *server.BroadcastServer) (server.Backend, error) {
 	app.RegisterCommand(server.Command{"SET", "Sets the specified key to the specified value in values.", "SET key 1234", false}, backend.Set)
 	app.RegisterCommand(server.Command{"SETNX", "Sets the specified key to the given value only if the key is not already set.", "SETNX key 1234", false}, backend.SetNx)
 	app.RegisterCommand(server.Command{"KEYS", "Returns the list of keys available or by pattern", "KEYS [pattern]", false}, backend.Keys)
+
+	// set commands
 	app.RegisterCommand(server.Command{"SADD", "Adds one or more members to a set", "SADD key member [member ...]", false}, backend.SAdd)
 	app.RegisterCommand(server.Command{"SREM", "Removes one or more members from a set", "SREM key member [member ...]", false}, backend.SRem)
 	app.RegisterCommand(server.Command{"SCARD", "Gets the number of members from a set", "SCARD key [key ...]", false}, backend.SCard)
 	app.RegisterCommand(server.Command{"SMEMBERS", "Gets all the members in a set", "SMEMBERS key", false}, backend.SMembers)
+	app.RegisterCommand(server.Command{"SDIFF", "Subtracts multiple sets", "SDIFF key [key ...]", false}, backend.SDiff)
+	app.RegisterCommand(server.Command{"SISMEMBER", "Returns if member is a member of the set", "SISMEMBER key member [member ...]", false}, backend.SIsMember)
+	app.RegisterCommand(server.Command{"SINTER", "Returns the members of the set resulting from the intersection of all the given sets", "SINTER key [key ...]", false}, backend.SInter)
+	app.RegisterCommand(server.Command{"SUNION", "Returns the members of the set resulting from the union of all the given sets", "SINTER key [key ...]", false}, backend.SUnion)
 	return backend, nil
 }
 

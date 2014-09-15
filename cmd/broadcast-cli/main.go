@@ -160,7 +160,7 @@ func printReply(cmd string, reply interface{}, indent string) {
 				if _, ok := replyV.([]interface{}); ok {
 					fmt.Printf("\n")
 				}
-				printReply(cmd, replyV, indent)
+				printReply(cmd, replyV, "")
 			}
 		}
 	case []interface{}:
@@ -169,11 +169,11 @@ func printReply(cmd string, reply interface{}, indent string) {
 		}
 		for i, v := range reply {
 			if _, ok := v.(map[string]interface{}); ok {
-				fmt.Printf("  %d) \n", i+1)
+				fmt.Printf("%d) \n", i+1)
 			} else {
-				fmt.Printf("  %d)\t", i+1)
+				fmt.Printf("%d) ", i+1)
 			}
-			printReply(cmd, v, indent+"\t")
+			printReply(cmd, v, " ")
 		}
 	}
 }
