@@ -13,6 +13,7 @@ import (
 var ip = flag.String("ip", "127.0.0.1", "broadcast-server ip")
 var port = flag.Int("port", 7331, "broadcast-server port")
 var bprotocol = flag.String("bprotocol", "redis", "broadcast-server protocol")
+var pipelined = flag.Bool("pipelined", false, "pipeline all the commands")
 var number = flag.Int("n", 1000, "request number")
 var clients = flag.Int("c", 50, "number of clients")
 
@@ -40,11 +41,28 @@ func waitBench(cmd string, args ...interface{}) {
 
 	c := client.Get()
 	defer client.CloseConnection(c)
-	for i := 0; i < loop; i++ {
-		_, err := c.Do(cmd, args...)
-		if err != nil {
-			fmt.Printf("do %s error %s", cmd, err.Error())
-			return
+	if *pipelined {
+		pipelineCount := 0
+		for i := 0; i < loop; i++ {
+			err := c.DoAsync(cmd, args...)
+			if err != nil {
+				fmt.Printf("do %s error %s", cmd, err.Error())
+				return
+			}
+			pipelineCount++
+		}
+
+		for pipelineCount > 0 {
+			c.Read()
+			pipelineCount--
+		}
+	} else {
+		for i := 0; i < loop; i++ {
+			_, err := c.Do(cmd, args...)
+			if err != nil {
+				fmt.Printf("do %s error %s", cmd, err.Error())
+				return
+			}
 		}
 	}
 }
