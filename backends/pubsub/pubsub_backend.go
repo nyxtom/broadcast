@@ -80,7 +80,6 @@ func (b *PubSubBackend) publish(data interface{}, client server.ProtocolClient) 
 		return nil
 	} else {
 		key := string(d[0])
-		message := d[1:]
 
 		if topic, ok := b.topics[key]; ok {
 			topic.Lock()
@@ -90,7 +89,7 @@ func (b *PubSubBackend) publish(data interface{}, client server.ProtocolClient) 
 				for c, _ := range topic.clients {
 					if sClient, ok := b.app.GetClient(c); ok {
 						go func() {
-							sClient.WriteBulk(message)
+							sClient.WriteBulk(d)
 							sClient.Flush()
 						}()
 					} else {
