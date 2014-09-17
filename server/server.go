@@ -120,6 +120,11 @@ func (app *BroadcastServer) Address() string {
 	return app.addr
 }
 
+func (app *BroadcastServer) GetClient(id string) (ProtocolClient, bool) {
+	client, ok := app.clients[id]
+	return client, ok
+}
+
 // Close will end any open network connections, issue last minute commands and flush any transient data
 func (app *BroadcastServer) Close() {
 	if app.Closed {

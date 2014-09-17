@@ -14,6 +14,7 @@ import (
 
 	"github.com/BurntSushi/toml"
 	"github.com/nyxtom/broadcast/backends/bdefault"
+	"github.com/nyxtom/broadcast/backends/pubsub"
 	"github.com/nyxtom/broadcast/backends/stats"
 	"github.com/nyxtom/broadcast/protocols/line"
 	"github.com/nyxtom/broadcast/protocols/redis"
@@ -26,6 +27,7 @@ type Configuration struct {
 	bprotocol       string        // broadcast protocol configuration
 	backend_default BackendConfig // bdefault backend configuration
 	backend_stats   BackendConfig // stats backend configuration
+	backend_pubsub  BackendConfig // pubsub backend configuration
 }
 
 type BackendConfig struct {
@@ -42,12 +44,13 @@ func main() {
 	var bprotocol = flag.String("bprotocol", "redis", "Broadcast protocol configuration")
 	var backend_default = flag.Bool("backend_default", true, "Broadcast default backend enabled")
 	var backend_stats = flag.Bool("backend_stats", false, "Broadcast stats backend enabled setting")
+	var backend_pubsub = flag.Bool("backend_pubsub", false, "Broadcast pubsub backend enabled setting")
 	var configFile = flag.String("config", "", "Broadcast server configuration file (/etc/broadcast.conf)")
 	var cpuProfile = flag.String("cpuprofile", "", "write cpu profile to file")
 
 	flag.Parse()
 
-	cfg := &Configuration{*port, *host, *bprotocol, BackendConfig{*backend_default}, BackendConfig{*backend_stats}}
+	cfg := &Configuration{*port, *host, *bprotocol, BackendConfig{*backend_default}, BackendConfig{*backend_stats}, BackendConfig{*backend_pubsub}}
 	if len(*configFile) == 0 {
 		fmt.Printf("[%d] %s # WARNING: no config file specified, using the default config\n", os.Getpid(), time.Now().Format(time.RFC822))
 	} else {
@@ -105,6 +108,16 @@ func main() {
 	// load the stats backend should it be enabled
 	if cfg.backend_stats.enabled {
 		backend, err := stats.RegisterBackend(app)
+		if err != nil {
+			fmt.Println(err)
+			return
+		}
+		app.LoadBackend(backend)
+	}
+
+	// load the pubsub backend should it be enabled
+	if cfg.backend_pubsub.enabled {
+		backend, err := pubsub.RegisterBackend(app)
 		if err != nil {
 			fmt.Println(err)
 			return

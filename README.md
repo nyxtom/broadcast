@@ -526,6 +526,10 @@ KEYS
 PING
  Pings the server for a response
 
+PUBLISH
+ Publishes to a specified topic given the data/arguments
+ usage: PUBLISH topic message
+
 SADD
  Adds one or more members to a set
  usage: SADD key member [member ...]
@@ -533,6 +537,10 @@ SADD
 SCARD
  Gets the number of members from a set
  usage: SCARD key [key ...]
+
+SDIFF
+ Subtracts multiple sets
+ usage: SDIFF key [key ...]
 
 SET
  Sets the specified key to the specified value in values.
@@ -542,6 +550,14 @@ SETNX
  Sets the specified key to the given value only if the key is not already set.
  usage: SETNX key 1234
 
+SINTER
+ Returns the members of the set resulting from the intersection of all the given sets
+ usage: SINTER key [key ...]
+
+SISMEMBER
+ Returns if member is a member of the set
+ usage: SISMEMBER key member [member ...]
+
 SMEMBERS
  Gets all the members in a set
  usage: SMEMBERS key
@@ -549,6 +565,18 @@ SMEMBERS
 SREM
  Removes one or more members from a set
  usage: SREM key member [member ...]
+
+SUBSCRIBE
+ Subscribes to a specified topic
+ usage: SUBSCRIBE topic [topic ...]
+
+SUNION
+ Returns the members of the set resulting from the union of all the given sets
+ usage: SINTER key [key ...]
+
+UNSUBSCRIBE
+ Unsubscribes from a specified topic
+ usage: UNSUBSCRIBE topic [topic ...]
 
 127.0.0.1:7331>
 ```

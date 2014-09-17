@@ -84,6 +84,17 @@ func main() {
 				printHelp(cmds)
 			} else if cmd == "CMDS" {
 				printCmds()
+			} else if cmd == "SUBSCRIBE" {
+				conn := c.Get()
+				conn.DoAsync(cmd, args...)
+				for {
+					reply, err := conn.Read()
+					if err != nil {
+						fmt.Printf("%s", err.Error())
+					} else {
+						printReply(cmd, reply, "")
+					}
+				}
 			} else {
 				async := isCmdAsync(cmd)
 				if async {
