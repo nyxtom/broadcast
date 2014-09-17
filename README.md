@@ -27,13 +27,13 @@ while being able to work directly with typed data.
 + commands can be written as fire-and-forget over the standard tcp stack
   that way clients know which commands need to be read immediately for
   replies. (i.e. COUNT foo will not return a reply).
++ pubsub backend for publishing/subscribing to topic channels
 
 ## TODO
 + cluster-aware configuration, allow broadcast-server to inspect commands 
   and determine whether both the command or the first key of the arguments
   is handled by a different server altogether using a hashring config.
 + add additional language clients (node.js, python, c#) 
-+ simple pub/sub protocol
 
 ## Build and Install
 
