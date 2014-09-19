@@ -49,6 +49,7 @@ func (p *RedisProtocol) RunClient(client server.ProtocolClient) {
 		return
 	}()
 
+	reqErr := client.RequestErrorChan()
 	for {
 		data, err := client.ReadBulkPayload()
 		if err != nil {
@@ -58,7 +59,7 @@ func (p *RedisProtocol) RunClient(client server.ProtocolClient) {
 			return
 		}
 
-		err = p.handleData(data, client)
+		err = p.handleData(data, client, reqErr)
 		if err != nil {
 			if err == errQuit {
 				client.WriteString("OK")
@@ -73,7 +74,7 @@ func (p *RedisProtocol) RunClient(client server.ProtocolClient) {
 	}
 }
 
-func (p *RedisProtocol) handleData(data [][]byte, client server.ProtocolClient) error {
+func (p *RedisProtocol) handleData(data [][]byte, client server.ProtocolClient, reqErr chan error) error {
 	cmd := strings.ToUpper(string(data[0]))
 	switch {
 	case cmd == "QUIT":
@@ -84,6 +85,11 @@ func (p *RedisProtocol) handleData(data [][]byte, client server.ProtocolClient) 
 			return errCmdNotFound
 		}
 
-		return handler(data[1:], client)
+		var err error
+		go func() {
+			reqErr <- handler(data[1:], client)
+		}()
+		err = <-reqErr
+		return err
 	}
 }

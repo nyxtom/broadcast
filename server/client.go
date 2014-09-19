@@ -49,6 +49,7 @@ type ProtocolClient interface {
 	ParseFloat64(b []byte) (float64, error)
 	ParseBool(b []byte) (bool, error)
 	ParseError(b []byte) (error, error)
+	RequestErrorChan() chan error
 }
 
 type BufferClient struct {
@@ -61,10 +62,11 @@ type BufferClient struct {
 type NetworkClient struct {
 	BufferClient
 
-	Addr   string        // remote address identifier
-	Closed bool          // closed boolean identifier
-	Conn   *net.TCPConn  // network connection associated with this client
-	Quit   chan struct{} // channel for when the client exits
+	Addr         string        // remote address identifier
+	Closed       bool          // closed boolean identifier
+	Conn         *net.TCPConn  // network connection associated with this client
+	Quit         chan struct{} // channel for when the client exits
+	RequestError chan error    // channel for request errors
 }
 
 // Close will shutdown any latent network connections and clear the client out
@@ -79,6 +81,7 @@ func (netClient NetworkClient) Close() {
 	netClient.Closed = true
 	netClient.Conn.Close()
 	netClient.Conn = nil
+	close(netClient.RequestError)
 	close(netClient.Quit)
 }
 
@@ -111,6 +114,11 @@ func (client *NetworkClient) Initialize(conn *net.TCPConn, bufferSize int) {
 	client.Writer = bufio.NewWriterSize(conn, bufferSize)
 	client.Addr = conn.RemoteAddr().String()
 	client.Quit = make(chan struct{})
+	client.RequestError = make(chan error)
+}
+
+func (client *NetworkClient) RequestErrorChan() chan error {
+	return client.RequestError
 }
 
 func (client *BufferClient) Flush() error {

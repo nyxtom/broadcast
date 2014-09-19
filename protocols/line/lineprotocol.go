@@ -52,6 +52,7 @@ func (p *LineProtocol) RunClient(client server.ProtocolClient) {
 		return
 	}()
 
+	reqErr := client.RequestErrorChan()
 	for {
 		data, err := c.readBulk()
 
@@ -62,7 +63,7 @@ func (p *LineProtocol) RunClient(client server.ProtocolClient) {
 			return
 		}
 
-		err = p.handleData(data, c)
+		err = p.handleData(data, c, reqErr)
 		if err != nil {
 			if err == errQuit {
 				return
@@ -75,7 +76,7 @@ func (p *LineProtocol) RunClient(client server.ProtocolClient) {
 	}
 }
 
-func (p *LineProtocol) handleData(data [][]byte, client *LineProtocolClient) error {
+func (p *LineProtocol) handleData(data [][]byte, client *LineProtocolClient, reqErr chan error) error {
 	cmd := strings.ToUpper(string(data[0]))
 	switch {
 	case cmd == "QUIT":
@@ -86,6 +87,11 @@ func (p *LineProtocol) handleData(data [][]byte, client *LineProtocolClient) err
 			return errCmdNotFound
 		}
 
-		return handler(data[1:], client)
+		var err error
+		go func() {
+			reqErr <- handler(data[1:], client)
+		}()
+		err = <-reqErr
+		return err
 	}
 }
