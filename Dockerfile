@@ -8,6 +8,13 @@ ENV GOPATH /go
 ENV GOROOT /usr/local/go
 ENV PATH /usr/local/go/bin:/go/bin:/usr/local/bin:$PATH
 
+# Install confd
+RUN curl -L https://github.com/kelseyhightower/confd/releases/download/v0.3.0/confd_0.3.0_linux_amd64.tar.gz | tar xz
+RUN mv confd /usr/local/bin/confd
+
+# Create directories
+RUN mkdir -p /etc/confd/conf.d
+
 # Install broadcast
 RUN mkdir -p /go/src/github.com/nyxtom/broadcast
 WORKDIR /go/src/github.com/nyxtom
@@ -15,8 +22,14 @@ RUN git clone https://github.com/nyxtom/broadcast.git
 WORKDIR /go/src/github.com/nyxtom/broadcast
 ADD . /go/src/github.com/nyxtom/broadcast
 
+# Add confd files
+ADD ./etc/broadcast.conf /etc/confd/conf.d/broadcast.conf
+
 # Run make to install
 RUN make
 
+# Expose port
 EXPOSE 7331
-CMD $GOPATH/bin/broadcast-server -config=/etc/broadcast.conf
+
+# Run the boot script
+CMD $GOPATH/bin/broadcast-server -config=/etc/confd/conf.d/broadcast.conf
