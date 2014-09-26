@@ -28,8 +28,14 @@ ADD ./etc/broadcast.conf /etc/confd/conf.d/broadcast.conf
 # Run make to install
 RUN make
 
+# Define mountable directories
+VOLUME ["/data"]
+
+# Working directory
+WORKDIR /data
+
+# Define default command
+CMD ["$GOPATH/bin/broadcast-server", "-config=/etc/confd/conf.d/broadcast.conf"]
+
 # Expose port
 EXPOSE 7331
-
-# Run the boot script
-CMD $GOPATH/bin/broadcast-server -config=/etc/confd/conf.d/broadcast.conf
