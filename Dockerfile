@@ -14,6 +14,8 @@ WORKDIR /go/src/github.com/nyxtom
 RUN git clone https://github.com/nyxtom/broadcast.git
 WORKDIR /go/src/github.com/nyxtom/broadcast
 ADD . /go/src/github.com/nyxtom/broadcast
+
+# Run make to install
 RUN make
 
 EXPOSE 7331

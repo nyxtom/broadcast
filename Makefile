@@ -1,6 +1,7 @@
 INSTALL_PATH ?= $(CURDIR)
 
 $(./build_tool/build_config.sh build_config.mk $INSTALL_PATH)
+$(shell ./bootstrap.sh >> /dev/null 2>&1)
 
 export CGO_CFLAGS
 export CGO_CXXFLAGS
