@@ -9,7 +9,9 @@ ENV GOROOT /usr/local/go
 ENV PATH /usr/local/go/bin:/go/bin:/usr/local/bin:$PATH
 
 # Install broadcast
-RUN go get github.com/nyxtom/broadcast
+mkdir -p /go/src/github.com/nyxtom/broadcast
+WORKDIR /go/src/github.com/nyxtom
+git clone https://github.com/nyxtom/broadcast.git
 WORKDIR /go/src/github.com/nyxtom/broadcast
 ADD . /go/src/github.com/nyxtom/broadcast
 make
